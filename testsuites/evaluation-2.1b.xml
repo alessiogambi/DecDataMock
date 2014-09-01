@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="ICSE 2015 - Evaluation 2.1 B" verbose="10" annotations="JDK">
+	<!-- Test parameters: These parameters act only on the value of the test 
+		data, thus not on the timing of the test cases execution -->
+	<!-- http://www.tutorialspoint.com/testng/testng_parameterized_test.htm -->
+
+	<parameter name="lowerBound" value="10" />
+	<parameter name="upperBound" value="20" />
+	<parameter name="lowerBoundResourceThrashing" value="10" />
+	<parameter name="upperBoundResourceThrashing" value="20" />
+	<!-- Must be at least 1 for the min/max test -->
+	<parameter name="minSize" value="1" />
+	<!-- Must be at least 5 for the min/max test -->
+	<parameter name="maxSize" value="15" />
+
+	<suite-files>
+		<suite-file path="testsuites/evaluation2.1/original.xml"></suite-file>
+		<!-- <suite-file path="testsuites/evaluation2.1/literal.xml"></suite-file> -->
+		<suite-file path="testsuites/evaluation2.1/equivalent.xml"></suite-file>
+		<suite-file path="testsuites/evaluation2.1/scenario.xml"></suite-file>
+		<!-- <suite-file path="testsuites/evaluation2.1/mixed.xml"></suite-file> -->
+	</suite-files>
+</suite>

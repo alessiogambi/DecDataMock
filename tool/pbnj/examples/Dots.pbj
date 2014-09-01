@@ -1,0 +1,153 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.LogMap;
+
+
+import pbnj.util.ArrayList;
+  
+import java.util.HashSet;
+import java.awt.*;
+import java.awt.Color;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+
+class Dot {
+    spec public Integer x, y, xOrig, yOrig;
+
+    public Dot(Integer x, Integer y) {
+        this.x = this.xOrig = x;
+        this.y = this.yOrig = y;
+    }
+
+    public void x(Integer x) { this.x = x; }
+    public void y(Integer y) { this.y = y; }
+
+    public String toString() { 
+	return "(" + x + ", " + y + ")";
+    }
+}
+
+public class Dots extends Canvas implements MouseListener, MouseMotionListener {
+
+    public Dots() { 
+	super(); 
+	this.dots = new ArrayList<Dot>();
+    }
+    
+    static int grid = 10;
+    static int canvasSize = 600;
+    static int dotSize = 20;
+    static Color[] colors = {Color.black, Color.blue, Color.darkGray, Color.gray, Color.red, Color.magenta, Color.orange, Color.pink, Color.yellow};
+    Graphics g;
+
+    spec static int minDistance = 50 / grid;
+    spec static int maxWiggleRoom = 40 / grid;
+    spec ArrayList<Dot> dots;
+
+    spec public int abs(int i) { return i < 0 ? -i : i; }
+
+    spec public boolean distributed() { 
+	return all Dot d1 : this.dots | 
+	    all Dot d2 : this.dots | 
+	    (d1 == d2 || 
+	     (abs(d1.x - d2.x) > minDistance) ||
+	     (abs(d1.y - d2.y) > minDistance));
+    }
+
+    spec public boolean unperturbed() { 
+	return all Dot d : this.dots |
+	    ((abs(d.xOrig - d.x) < maxWiggleRoom) && 
+	     (abs(d.yOrig - d.y) < maxWiggleRoom));
+    }
+
+    spec public boolean validPos() { 
+	return all Dot d : this.dots |
+	    (d.x > 0 && d.y > 0);
+    }
+
+    spec public PBJInternSet<Dot> surrounds(Dot d) {
+	return { all Dot d1 | ((abs(d1.x - d.x) <= minDistance) &&		     
+			       (abs(d1.y - d.y) <= minDistance)) };
+    }
+
+    public void mousePressed( MouseEvent e ) { ; }    
+    public void mouseDragged( MouseEvent e ) { ; }
+    public void mouseClicked( MouseEvent e ) { ; }
+    public void mouseEntered( MouseEvent e ) { ; }
+    public void mouseExited( MouseEvent e ) { ; }
+    public void mouseMoved( MouseEvent e ) { ; }
+    
+    public void mouseReleased( MouseEvent e ) {
+	int x = (int) Math.floor(e.getX() / grid), y = (int) Math.floor(e.getY() / grid);
+	Dot d = new Dot(x, y);
+	dots.add(d);
+	//System.out.println("surroundings: " + surroundsTransitiveClosure(d));
+	moveDotsIfNeeded(d);
+	draw();
+    }
+
+    public void moveDotsIfNeeded(Dot d) 
+	modifies fields Dot:x, Dot:y
+	modifies objects surroundsTransitiveClosure(d)
+	ensures validPos() && distributed() && unperturbed() {
+    }
+
+    public void draw() {
+	int i = 0;
+	int m = maxWiggleRoom * 2 * grid;
+	paint(g);
+	for (Dot d : this.dots) {
+	    g.setColor(colors[i++]);
+	    g.fillOval(d.x * grid, d.y * grid, dotSize, dotSize);
+	    g.drawRect((d.xOrig - maxWiggleRoom) * grid, (d.yOrig - maxWiggleRoom) * grid, m, m);
+	    if (i == colors.length)
+		i = 0;
+	}
+    }
+
+    public void init() {
+	this.g = getGraphics();
+	paint(g);
+    }
+
+    public HashSet<Object> surroundsTransitiveClosure(Dot d) {
+	int x = d.x, y = d.y;
+	
+	HashSet<Object> res = new HashSet<Object>();
+        HashSet<Object> unExpanded = new HashSet<Object>();
+
+        unExpanded.add(d);
+	Object n;
+	while (unExpanded.size() > 0) {
+	    n = unExpanded.iterator().next();
+	    res.add(n);            
+	    unExpanded.addAll(surrounds((Dot)n));
+	    for (Object d1 : res)
+		unExpanded.remove(d1);
+	}
+        return res;	
+    }
+    
+    public static void main(String[] args) {
+	boolean useAltSolver = args.length > 0;
+	if (useAltSolver)
+	    polyglot.ext.pbnj.tologic.LogMap.SolverOpt_SolverNum(Integer.parseInt(args[0]));
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 7;
+	Frame myFrame = new Frame("Distributed Dots");
+	Dots myCanvas = new Dots();
+	myCanvas.addMouseListener(myCanvas);
+	myCanvas.addMouseMotionListener(myCanvas);
+	myFrame.add(myCanvas);
+	myFrame.setSize(canvasSize, canvasSize);
+	myFrame.setVisible(true);
+	myCanvas.init();
+	myFrame.addWindowListener(new WindowAdapter() {
+		public void windowClosing(WindowEvent we) {
+		    System.exit(0);
+		}
+	    });
+    }
+}

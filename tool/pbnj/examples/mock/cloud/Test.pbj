@@ -1,0 +1,113 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.util.ArrayList;
+import java.util.Arrays;
+
+public class Test {
+    
+    spec int maxThreshold;
+    spec CurrentContext currentContext;
+    spec CurrentConfiguration currentConfiguration;
+
+    public Test() {
+	this.maxThreshold = 10;
+	this.currentContext = new CurrentContext();
+	this.currentConfiguration = new CurrentConfiguration();
+    }
+
+    spec boolean needsScaleUpAtIndex(int i) {
+	return currentContext.requestSumAtIndex(i) / currentConfiguration.numRunningServers > maxThreshold;
+    }
+
+    spec boolean needsScaleDownAtIndex(int i) {
+	return !needsScaleUpAtIndex(i);
+    }
+
+    void testTriggerScaleMain() 
+	modifies fields RequestCounts:counts
+	ensures needsScaleUpAtIndex(0) && needsScaleDownAtIndex(1) {	
+    }
+
+    void testTriggerScaleInit()  {
+	currentConfiguration.numRunningServers = 4;
+	for (int i = 0; i <= 1; i++)
+	    currentContext.requestCounts.add(new RequestCounts());
+    }
+
+    void testTriggerScale()  {
+	testTriggerScaleInit();
+	System.out.println("Before:\n" + this);
+	testTriggerScaleMain();
+	System.out.println("After:\n" + this);
+    }
+
+
+    public String toString() {
+	return "A Test (currentContext = " + currentContext + 
+	    ", currentConfiguration = " + currentConfiguration + 
+	    ", maxThreshold = " + maxThreshold + ")";	
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_ArrayMaxSize = 10;
+	//LogMap.SolverOpt_IntBitWidth = 8;
+	//LogMap.SolverOpt_debugLevel(1);
+	Test t = new Test();
+	t.testTriggerScale();
+    }
+}
+
+class RequestCounts ensures valid() {
+    spec int numRequests;
+    // represents a round of N = 5 monitored counts 
+    spec int[] counts;     
+    public RequestCounts() {
+	this.numRequests = 5;
+	this.counts = new int[5];
+    }
+    spec boolean valid() {
+	return counts != null && counts.length == numRequests
+	    && all int i : 0 .. numRequests - 1 | (counts[i] >= 0 && counts[i] <= 20);
+
+    }
+    // general array sum isn't part of spec lang yet...
+    spec int requestSum() { 
+	return counts[0] + counts[1] + counts[2] + counts[3] + counts[4];
+    }
+    public String toString() {
+	return Arrays.toString(counts);
+    }
+}
+
+class CurrentContext ensures valid() {
+    // represents last X rounds of monitored counts (first element is the most recent round, and so on)
+    spec ArrayList<RequestCounts> requestCounts; 
+    public CurrentContext() {
+	this.requestCounts = new ArrayList<RequestCounts>();
+    }
+    spec boolean valid() {
+	return requestCounts != null && requestCounts.valid() && 
+	    all int i : 0 .. requestCounts.size() - 1 | 
+	    (requestCounts.get_spec(i) != null && requestCounts.get_spec(i).valid());
+    }
+    // general array sum isn't part of spec lang yet...
+    spec int requestSumAtIndex(int i) { 
+	return requestCounts.get_spec(i).requestSum();
+    }
+    public String toString() {
+	return "A CurrentConext (requestCounts = " + requestCounts + ")";
+    }
+    
+}
+
+class CurrentConfiguration ensures valid() { 
+    spec int numRunningServers;
+    spec boolean valid() {
+	return true;
+    }
+    public String toString() {
+	return "A CurrentConfiguration (numRunningServers = " + numRunningServers + ")";
+    }
+}
+
+

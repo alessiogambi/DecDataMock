@@ -1,0 +1,113 @@
+package at.ac.testing.mocks;
+
+import java.util.Map;
+import java.util.HashMap;
+
+import brooklyn.policy.autoscaling.AutoScalerPolicy;
+import brooklyn.event.basic.BasicNotificationSensor;
+import brooklyn.event.basic.Sensors;
+
+public class SensorReading 
+	ensures valid(){
+	
+	// Metric or PoolSensor 
+	spec public int value;
+	spec public int multiplier;
+	
+	// Only PoolSensor
+	spec public int currentSize;
+	spec public int lowThreshold;
+	spec public int highThreshold;
+	
+	// Sensor Type 
+	
+	
+	spec public boolean valid() {
+		return
+			this.value >= 0 &&
+			this.multiplier >= 1 &&
+			this.currentSize >= 0 &&
+			this.lowThreshold >0 &&
+			this.highThreshold > this.lowThreshold
+		;
+	}
+
+	// Default sensors
+	public BasicNotificationSensor<Map> getPoolSensor( ActionType actionType )
+	{
+		if( actionType == ActionType.SCALE_UP){ return AutoScalerPolicy.DEFAULT_POOL_HOT_SENSOR; }
+		else if( actionType == ActionType.SCALE_DOWN){ return AutoScalerPolicy.DEFAULT_POOL_COLD_SENSOR; }
+		else { return AutoScalerPolicy.DEFAULT_POOL_OK_SENSOR; }
+	}
+	
+	// Default sensors
+	public BasicNotificationSensor<Map> getWrongPoolSensor( ActionType actionType )
+	{
+		if( actionType == ActionType.SCALE_UP){ return AutoScalerPolicy.DEFAULT_POOL_COLD_SENSOR; }
+		else if( actionType == ActionType.SCALE_DOWN){ return AutoScalerPolicy.DEFAULT_POOL_HOT_SENSOR; }
+		else { return AutoScalerPolicy.DEFAULT_POOL_HOT_SENSOR; }
+	}
+
+
+	// Note this might also return a non valid sensor that still makes sense for testing the application
+	// That's why we keep this here for the moment !
+	//
+	public BasicNotificationSensor<?> getPoolSensor(
+			ActionType actionType,
+			BasicNotificationSensor<?> poolHotSensor,
+			BasicNotificationSensor<?> poolColdSensor,
+			BasicNotificationSensor<?> poolOkSensor)
+	{
+		if( actionType == ActionType.SCALE_UP){ return poolHotSensor; }
+		else if( actionType == ActionType.SCALE_DOWN){ return poolColdSensor; }
+		else { return poolOkSensor; }
+	}
+	
+	// This should be improved eventually
+	public BasicNotificationSensor<?> getWrongPoolSensor(
+			ActionType actionType,
+			BasicNotificationSensor<?> poolHotSensor,
+			BasicNotificationSensor<?> poolColdSensor,
+			BasicNotificationSensor<?> poolOkSensor)
+	{
+		if( actionType == ActionType.SCALE_UP){ return poolColdSensor; }
+		else if( actionType == ActionType.SCALE_DOWN){ return poolHotSensor; }
+		else { return poolHotSensor; }
+	}	
+	
+	public Integer getMetric() {
+		return
+			value * multiplier
+		;
+    }
+
+	public Map<String, Object> getSensorReading() {
+       	Map<String, Object> theMap = new HashMap<String, Object>();
+       	theMap.put(AutoScalerPolicy.POOL_CURRENT_SIZE_KEY, currentSize);
+		theMap.put(AutoScalerPolicy.POOL_CURRENT_WORKRATE_KEY, (double) (value * multiplier) );
+		theMap.put(AutoScalerPolicy.POOL_LOW_THRESHOLD_KEY, (double) lowThreshold);
+		theMap.put(AutoScalerPolicy.POOL_HIGH_THRESHOLD_KEY, (double) highThreshold);
+
+		return
+			theMap
+        ;
+    }
+
+	
+	
+	public String toString() {
+		return String.format("Sensor [%s : %d, %s : %d, %s : %d, %s : %d]",
+			AutoScalerPolicy.POOL_CURRENT_SIZE_KEY, currentSize,
+			AutoScalerPolicy.POOL_CURRENT_WORKRATE_KEY, (value * multiplier),
+            AutoScalerPolicy.POOL_LOW_THRESHOLD_KEY, lowThreshold,
+            AutoScalerPolicy.POOL_HIGH_THRESHOLD_KEY, highThreshold)
+		;
+    }
+	
+	
+	public Object getValue(SensorType type){
+		return this.value * this.multiplier;
+	
+	}
+	
+}

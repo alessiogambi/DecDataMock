@@ -1,0 +1,59 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.util.ArrayList;
+import pbnj.examples.primitives.*;
+
+public class Stocks {
+    pure fresh ArrayList<Stock> getStocks(ArrayList<PBJString> symbols)
+	adds symbols.size() Stock, 1 ArrayList<Stock>
+	ensures result != null &&  result.size() == symbols.size()
+	&& allPresent(symbols, result) && allDistinct(result) {
+	return null;
+	/*
+	List<Stock> res = new ArrayList<Stock>();
+	for (PBJString s : symbols) {
+	    Stock q;
+	    while (q == null || res.contains(q)) {
+		q = new Stock(rand, rand);
+		q.low = ...;
+		q.high = ...;
+	    }
+	    res.add(q);
+	}
+	*/
+    }
+
+    spec boolean allPresent(ArrayList<PBJString> symbols, ArrayList<Stock> result) {
+	return all PBJString n : symbols | some Stock s : result | s.symbol == n;
+    }
+
+    spec boolean allDistinct(ArrayList<Stock> result) {
+	return all Stock s1 : result | all Stock s2 : result | (s1 != s2 ==> !s1.equals(s2));
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_debugLevel(3);
+	LogMap.SolverOpt_IntBitWidth = 8;
+	int numStocks = 20;
+	Stocks b = new Stocks();
+	LogMap.SolverOpt_ArrayMaxSize = numStocks;
+	ArrayList<PBJString> symbols = new ArrayList<PBJString>();
+	for (int i = 0; i < numStocks; i++)
+	    symbols.add(new PBJString("s" + i));
+	System.out.println(b.getStocks(symbols));
+    }
+}
+
+class Stock ensures valid() { 
+    spec PBJString symbol;
+    spec int open, close, low, high;
+    spec boolean valid() {
+	return symbol != null && open >= 0 && close >= 0 && low >= 0 
+	    && low <= PBJUtils.Min(open, close) && high >= PBJUtils.Max(open, close);
+    }
+    spec boolean equals(Stock o) {
+	return open == o.open && close == o.close && low == o.low && high == o.high;
+    }
+}
+
+

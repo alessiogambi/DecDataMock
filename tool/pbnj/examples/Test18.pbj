@@ -1,0 +1,28 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+
+public class Test18 {
+    
+    spec byte x;
+    spec byte[] xs;
+
+    public Test18() { this.xs = new byte[2]; xs[0] = 1; xs[1] = 3; }
+
+    public String toString() {
+	return "x=" + x + " xs=" + Arrays.toString(xs);
+    }
+
+    public void m17()
+	ensures this.xs[0] == this.old.xs[0] + 1 {
+    }
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test18 t1 = new Test18();
+	System.out.println(t1);
+	t1.m17();
+	System.out.println(t1);
+    }
+
+}

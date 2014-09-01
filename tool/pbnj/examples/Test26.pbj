@@ -1,0 +1,43 @@
+import polyglot.ext.pbnj.tologic.*;
+
+class Test26Foo { }
+
+public class Test26 {
+    
+    spec static int y;
+    spec Test26Foo foo;
+    spec static Test26Foo bar1 = new Test26Foo();
+    spec static Test26Foo bar2 = new Test26Foo();
+
+    public Test26() { this.foo = new Test26Foo(); }
+
+    public String toString() {
+	return " y=" + y + " foo=" + foo;
+    }
+
+    spec static int getY() { return Test26.y; }
+
+    spec Test26Foo getFoo() { return this.foo; }
+
+    spec static Test26Foo getBar1() { return Test26.bar1; }
+
+    public void m25()
+	ensures this.y != 0 && this.foo != null {
+    }
+
+    public void m25b()
+	ensures getY() != 0 {
+    }
+    
+    
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test26 t1 = new Test26();
+	System.out.println(t1);
+	t1.m25();
+	System.out.println(t1);
+    }
+
+}

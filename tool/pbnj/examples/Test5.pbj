@@ -1,0 +1,39 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.examples.primitives.*;
+import pbnj.util.ArrayList;
+
+public class Test5 {
+
+    spec ArrayList<PBJString> names1;
+
+    public Test5() {
+	super();	
+	this.names1 = new ArrayList<PBJString>();
+	this.names1.add(new PBJString("foobar"));
+    }
+    
+
+    public String toString() {
+	return " names1=" + names1;
+    }
+
+    public void m4()
+	modifies fields ArrayList<PBJString>:elementData, ArrayList<PBJString>:size
+	ensures this.names1.size() == 2 
+	&& this.names1.get_spec(0) == this.names1.get_spec(1)	
+	&& this.names1.get_spec(0) != null
+    {
+	
+    }
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test5 t1 = new Test5();
+	System.out.println(t1);
+	t1.m4();
+	System.out.println(t1);
+    }
+
+}

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+CURRDIR=`pwd`
+echo "RUNNING WITH $# $@ FROM $CURR_DIR"
+
+# This script assumes that the PBNJ_HOME env variable is defined !
+# http://stackoverflow.com/questions/307503/whats-the-best-way-to-check-that-environment-variables-are-set-in-unix-shellscr
+: ${PBNJ_HOME:?"The PBNJ_HOME env var must be set and non-empty"}
+
+# This script assumes that a file named project-classpath is placed at the root of the project. To create the file
+# one can you the following maven command: mvn dependency:build-classpath -Dmdep.outputFile=project-classpath
+if [ ! -f $CURRDIR/project-classpath ]; then
+	echo "FATAL: The project-classpath is missing. Use the following command to create it: mvn dependency:build-classpath -Dmdep.outputFile=project-classpath"
+	exit 1
+fi
+
+echo "Deleting old java and class files"
+rm $(find $1 -iname "*.java")
+rm $(find $1 -iname "*.class")
+
+echo "Compiling PBJ specs with:"
+echo `java -version`
+echo "Compiling :" $(find $1 -iname "*.pbj")
+
+JAVA_LIB_CLASSES=$PBNJ_HOME/examples/classes
+PROJECT_CLASSPATH=`cat project-classpath`
+
+echo "PBNJ_HOME: $PBNJ_HOME"
+echo "JAVA_LIB_CLASSES: $JAVA_LIB_CLASSES"
+echo "PROJECT_CLASSPATH: $PROJECT_CLASSPATH"
+echo "PBNJ_CLASSPATH: $PBNJ_CLASSPATH"
+
+java -cp $PROJECT_CLASSPATH:$PBNJ_HOME/jar/pbnj.jar:$PBNJ_HOME/jar/polyglot.jar:$PBNJ_HOME/jar/jl5.jar:$PBNJ_HOME/jar/JFlex.jar:$PBNJ_HOME/jar/kodkod.jar:$JAVA_LIB_CLASSES:$CURRDIR:$PBNJ_CLASSPATH polyglot.main.Main -ext pbnj -assert -d $1 $(find $1 -iname "*.pbj")
+
+echo "DONE"

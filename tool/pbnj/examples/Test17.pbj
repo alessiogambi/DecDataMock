@@ -1,0 +1,25 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+class Test17 {
+    spec int x;
+
+    public Test17(int x) { this.x = x; }
+
+    pure fresh public Test17 m16() 
+	adds 1 Test17
+	ensures result != null && result.x == 9
+    { return null; }
+
+    public String toString() { return "@" + hashCode() + " x=" + x; }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	//LogMap.SolverOpt_IntBitWidth = 6;
+	Test17 t1 = new Test17(9);
+	System.out.println(t1);
+	System.out.println(t1.m16());
+	System.out.println(t1);
+    }
+
+}

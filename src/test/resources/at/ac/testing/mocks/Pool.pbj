@@ -1,0 +1,162 @@
+package at.ac.testing.mocks;
+
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.util.ArrayList;
+import java.util.Arrays;
+
+/**
+ * A Pool is an abstraction of a set of resources that can be dynamically adapted
+ */
+public class Pool { 
+	// ensures valid(){
+	
+	 // This Set of objects are constraints on min/max resource usage. At the moment is not clear if they should belong to here
+    spec public int minSize = -1;
+    spec public int maxSize = -1;
+    
+    spec boolean validConfiguration(){
+    	return true &&
+    		this.minSize >= 0 &&
+			this.maxSize >= this.minSize
+		;
+    }
+    
+    spec boolean defaultValues(){
+    	return
+			this.old.minSize == -1
+				==> this.minSize == 0
+			&&
+			this.old.maxSize == -1
+				==> this.maxSize == 25
+    	;
+    }
+    
+    spec public boolean valid(){
+    	return true &&
+    		validConfiguration()
+    	;
+    }
+    spec boolean keepValues(){ 
+    	return
+			this.old.minSize > -1
+				==> this.minSize == this.old.minSize
+			&&
+			this.old.maxSize > -1
+				==> this.maxSize == this.old.maxSize
+		;
+	}
+
+	public void init()
+		modifies fields Pool:minSize, Pool:maxSize 
+		ensures
+    		defaultValues()
+    		&&
+    		keepValues()
+	{	}
+	
+	public Pool(){	}
+	
+	public Pool(int minSize, int maxSize){
+		this.minSize = minSize;
+		this.maxSize = maxSize;
+	}
+	
+	spec boolean minSize(TimedAction action){
+		return
+			action.startSize >= this.minSize
+			&&
+			action.targetSize >= this.minSize
+		;
+	}
+	
+	spec boolean maxSize(TimedAction action){
+		return
+			action.startSize <= this.maxSize &&
+			action.targetSize <= this.maxSize
+		;
+	}
+	
+	spec boolean overMaxSize(TimedAction action){
+		return
+			action.startSize <= this.maxSize &&
+			action.targetSize > this.maxSize &&
+			// Ensures a feasible value 
+			action.targetSize < 25
+		;
+	}
+	
+	spec boolean underMinSize(TimedAction action){
+	return
+			action.startSize >= this.minSize &&
+			action.targetSize < this.minSize
+		;
+	}
+	
+	//
+	// I am not sure that action.valid() is a requirement !
+	//
+	public void forceValidMaxSize(TimedAction action)
+		modifies fields
+			
+			TimedAction:startSize,
+			TimedAction:targetSize,
+			TimedAction:type,
+			TimedAction:sensorType
+		ensures
+			maxSize( action )
+			// && action.valid() // --> This modifies all the fields !
+	{	}
+	
+	public void forceValidMinSize(TimedAction action)
+		modifies fields
+			
+			TimedAction:startSize,
+			TimedAction:targetSize,
+			TimedAction:type,
+			TimedAction:sensorType
+		ensures
+			minSize( action ) 
+			// && action.valid() // --> This modifies all the fields !
+	{	}
+	
+	public void forceValidSize(TimedAction action)
+		modifies fields
+			
+			TimedAction:startSize,
+			TimedAction:targetSize,
+			TimedAction:type,
+			TimedAction:sensorType
+		ensures
+			minSize( action ) &&
+			maxSize( action ) 
+			// && action.valid() // --> This modifies all the fields !
+	{	}
+	
+	public void forceOverMax(TimedAction action)
+		modifies fields
+			TimedAction:targetSize
+		ensures
+			action.targetSize > this.maxSize
+			&&
+			action.validTargetSize()
+	{	}
+	
+	public void forceUnderMin(TimedAction action)
+		modifies fields
+			TimedAction:targetSize
+		ensures
+			action.targetSize < this.minSize
+			&&
+			action.validTargetSize()
+	{	}
+	
+
+	public String toString() {
+    	return	"Pool : \n" +
+				"\tMin Size " + minSize + "\n" +
+				"\tMax Size " + maxSize + "\n" +
+		"";
+	}	
+		
+}

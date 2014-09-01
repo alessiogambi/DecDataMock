@@ -1,0 +1,931 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.examples.primitives.*;
+import pbnj.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import org.antlr.runtime.*;
+import java.sql.SQLException;
+import java.io.*;
+import java.sql.*;
+import java.util.*;
+import java.math.BigDecimal;
+import java.net.URL;
+
+enum SqlCmd { CREATE_DB, CONNECT, CLOSE, CREATE_TABLE, INSERT, DELETE, UPDATE, SELECT }
+
+class Database 
+    ensures valid() {
+    spec public PBJString id;
+    spec PBJMap<PBJString,Table> tables;
+
+    spec public PBJMap<PBJString,Table> tables() { return tables; }
+    
+    public Database(PBJString id) { 
+	this.id = id; 
+	this.tables = new PBJMap<PBJString,Table>();
+    }
+
+    spec boolean valid() {
+	return id != null
+	    && tables != null
+	    && tables.valid()
+	    && uniqueTables()
+	    && !tables.containsKey_spec(null)
+	    && all PBJString i : tables.keySet_spec() | 
+	    (i != null 
+	     && tables.get_spec(i) != null 
+// 	     && tables.get_spec(i).id == i 
+	     && tables.get_spec(i).valid())
+	    ;
+    }
+
+    spec boolean tableExists(PBJString id) {
+	return tables.containsKey_spec(id);
+    }
+
+    spec boolean tableExistsAndValid(PBJString id) {
+	Table tb = tables.get_spec(id);
+	return tableExists(id)
+	    && tb != null
+ 	    && tb.id == id
+	    && tb.valid()
+	    ;
+    }
+
+    spec boolean uniqueTables() {
+	return tables != null && uniqueTablesH1();
+    }
+
+    spec boolean uniqueTablesH1() {
+	PBJInternSet<PBJString> keys = tables.keySet_spec();
+	return all PBJString i : keys |
+	    all PBJString j : keys |
+	    (i == j || uniqueTablesH2(tables.get_spec(i), tables.get_spec(j)));
+    }
+
+    spec boolean uniqueTablesH2(Table tb1, Table tb2) {
+	return tb1 != tb2 && uniqueTablesH3(tb1, tb2);
+    }
+
+    spec boolean uniqueTablesH3(Table tb1, Table tb2) {
+	return tb1.rows == null || tb2.rows == null || 
+	    (tb1.rows != tb2.rows && uniqueRowsH1(tb1, tb2));
+    }
+
+    spec boolean uniqueRowsH2(Tuple tp1, Tuple tp2) {
+	return tp1 != tp2;
+    }
+
+    spec boolean uniqueRowsH1(Table tb1, Table tb2) {
+	int os1 = tb1.rows.size();
+	int os2 = tb2.rows.size();
+	return all int i : 0 .. os1 - 1 | 
+	    all int j : 0 .. os2 - 1 | 
+	    uniqueRowsH2(tb1.rows.get_spec(i), tb2.rows.get_spec(j));
+    }
+
+    public String toString() { return "\n" + id + 
+	    ": " + tables + "\n"; }
+}
+
+class Table 
+    ensures valid()  {
+    spec public PBJString id;  
+    spec public int arity;
+    spec PBJString primaryKey;
+    spec ArrayList<PBJString> fields;
+    spec ArrayList<Tuple> rows;
+
+    spec public ArrayList<PBJString> fields() { return fields; }
+    spec public ArrayList<Tuple> rows() { return rows; }
+    
+    public Table(PBJString id, int arity) { 
+	this.id = id; 
+	this.arity = arity; 
+	this.rows = new ArrayList<Tuple>(); 
+	this.fields = new ArrayList<PBJString>();
+    }
+
+    spec boolean valid() {
+	return id != null
+	    && arity >= 1
+	    && fields != null
+	    && rows != null
+	    && rows.valid()
+	    && fields.valid()
+	    && arity == fields.size()
+	    && fields.contains_spec(primaryKey)
+	    && all int i : 0 .. arity - 1 | fields.get_spec(i) != null
+	    && validRows()
+	    && uniqueRows()
+	    ;
+    }
+
+    spec int indexOf(PBJString field) {
+	return { some int i: 0 .. arity - 1 | fields.get_spec(i) == field };
+    }
+
+    spec public Literal lookup(int rowId, PBJString colId, boolean isOld) {
+ 	Tuple tp = isOld ? old.rows.get_spec(rowId) : rows.get_spec(rowId);
+	return tp.value().get_spec(indexOf(colId));
+    }
+
+    spec public Literal lookup(Tuple tp, PBJString colId) {
+	return tp.value().get_spec(indexOf(colId));
+    }
+
+    spec boolean uniqueRows() {
+	return rows == null || uniqueRowsH();
+    }
+
+    spec boolean uniqueRowsH() {
+	int os = rows.size();
+	int primaryIdx = indexOf(primaryKey);
+	return all int i : 0 .. os - 1 | 
+	    all int j : 0 .. os - 1 | 
+	    (i == j || rows.get_spec(i).get(primaryIdx) != rows.get_spec(j).get(primaryIdx));
+    }
+
+    spec boolean validRows() {
+	int os = rows.size();
+	return all int i : 0 .. os - 1 | 
+	    (rows.get_spec(i) != null 
+	     && rows.get_spec(i).value.size() == arity 
+	     && rows.get_spec(i).valid());
+    }
+
+    spec public boolean add(int rowId, Literal[] val) {
+	Tuple tp = rows.get_spec(rowId);
+	return rows.add_spec(tp) 
+	    && tp.value().size() == arity
+	    && (all int i : 0 .. arity - 1 | tp.value().get_spec(i) == val[i]);
+    }
+
+    spec public boolean remove(BExpr where) {
+	int os = old.rows.size();
+	PBJInternSet<Integer> ms = matchingRowIds(where);
+	return rows.size() == os - ms.size()
+ 	    && all int id : 0 .. os - 1 |	    
+	    ((ms.contains(id) ==> !rows.contains_spec(old.rows.get_spec(id)))
+	     && ((!ms.contains(id)) ==> rows.contains_spec(old.rows.get_spec(id))))
+
+	    ;
+    }
+
+    spec public boolean set(PBJString colIdSet, Literal valSet, BExpr where) { 
+	int os = old.rows.size();
+	PBJInternSet<Tuple> ms = matchingRows(where);
+	return all Tuple tp : old.rows |
+	    (ms.contains(tp) ? (lookup(tp, colIdSet) == valSet
+				   && (all int colIdx : 0 .. arity - 1 | 
+				       ((colIdx != indexOf(colIdSet)) ==> 
+					tp.tupleUnchangedAt(colIdx))))
+	      : tp.value().unchanged_spec())
+	    ;
+    }
+
+    spec public boolean select(BExpr where, ResultSet queryResult) { 
+	PBJInternSet<Tuple> ms = matchingRows(where);
+	return true
+	    && (all Tuple tp : ms | 
+	     queryResult.results().contains_spec(tp)) 
+	    && queryResult.results() != null
+	    && queryResult.results().size() == ms.size()
+	    ;
+    }
+
+    spec PBJInternSet<Tuple> matchingRows(BExpr where) {
+	return { all Tuple tuple : old.rows 
+	    | (where == null || where.valid(this, tuple)) };
+    }
+
+    spec PBJInternSet<Integer> matchingRowIds(BExpr where) {
+	int os = old.rows.size();
+	return { all int id : 0 .. os - 1 |
+		(where == null || where.wasValid(this, id)) };
+    }
+    
+    public String toString() { 
+	String others = "";
+	for (int i = 1; i < fields.size(); i++)
+	    others += ", " + fields.get(i);
+	return id + " [<" + fields.get(0) + ">" + others + "] = " + rows; 
+    }
+}
+
+class Tuple {
+    spec ArrayList<Literal> value;  
+    spec public ArrayList<Literal> value() { return value; }  
+
+    public Tuple() { this.value = new ArrayList<Literal>(); }
+
+    spec boolean valid() {
+	return this.value != null &&
+	    this.value.valid() &&
+	    validLiterals();
+    }
+
+    spec boolean validLiterals() {
+	int os = value.size();
+	return all int i : 0 .. os - 1 | 
+	    (value.get_spec(i) != null && value.get_spec(i).valid());   
+    }
+
+
+    spec public boolean tupleUnchangedAt(int i) {
+	return value.get_spec(i) == old.value.get_spec(i);
+    }
+    
+    spec public Literal get(int i) { return value.get_spec(i); }
+
+    public String toString() { 
+	String s = value.toString();
+	return "(" + s.substring(1, s.length() - 1) + ")";
+    }
+}
+
+class Literal {
+    spec public boolean isInt, isFloat, isString;
+    spec public int intValue;
+    spec public PBJFloat floatValue;
+    spec public PBJString stringValue;
+
+    public Object value() {
+	return isString ? stringValue : isInt ? (Object) new Integer(intValue) : floatValue;
+    }
+    public String stringValue() { 
+	return value().toString(); 
+    }
+    private static HashMap<Object,Literal> instances = new HashMap<Object,Literal>();
+
+    spec public boolean valid() {
+	return isString ==> stringValue != null
+	    && isFloat ==> floatValue != null
+	    && ((isString || isInt || isFloat)
+		&& !(isString && isInt)
+		&& !(isString && isFloat)
+		&& !(isInt && isFloat))
+	    ;
+    }
+
+    public Literal(int intValue) { 
+	this.intValue = intValue; 
+	this.isInt = true; 
+	if (!instances.containsKey(intValue))
+	    instances.put(intValue, this);
+    }
+    public Literal(float floatValue) { 
+	this.floatValue = PBJFloat.get(floatValue); 
+	this.isFloat = true; 
+	if (!instances.containsKey(floatValue))
+	    instances.put(floatValue, this);
+    }
+    public Literal(String stringValue) { 
+	this.stringValue = PBJString.get(stringValue); 
+	this.isString = true; 
+	if (!instances.containsKey(stringValue))
+	    instances.put(stringValue, this);
+    }
+    public static Literal get(int original) {
+	if (instances.containsKey(original))
+	    return instances.get(original);
+	return new Literal(original);
+    }
+    public static Literal get(float original) {
+	if (instances.containsKey(original))
+	    return instances.get(original);
+	return new Literal(original);
+    }
+    public static Literal get(String original) {
+	if (instances.containsKey(original))
+	    return instances.get(original);
+	return new Literal(original);
+    }
+    public String toString() { return isInt ? (intValue + "") : 
+	    isFloat ? floatValue.toString() : stringValue(); }
+}
+
+
+enum Op { AND, OR, EQ, NE, LT, LTE, GT, GTE }
+class BExpr {
+    spec Op op;
+    public BExpr(Op op) { this.op = op; }
+    spec boolean valid(Table t, Tuple p) {
+	return this instanceof FormulaExpr ?
+	    ((FormulaExpr) this).validH(t, p) :
+	    ((CmpExpr) this).valid(t, p);
+    }
+    spec boolean wasValid(Table t, int p) {
+	return this instanceof FormulaExpr ?
+	    ((FormulaExpr) this).wasValidH(t, p) :
+	    ((CmpExpr) this).wasValid(t, p);
+    }
+
+}
+class FormulaExpr extends BExpr {
+    spec BExpr left;
+    spec BExpr right;
+    public FormulaExpr(Op op, BExpr left, BExpr right) {
+	super(op);
+	this.left = left;
+	this.right = right;
+    }
+    spec boolean valid(Table t, Tuple p) {
+	boolean lVal = left.valid(t, p);
+	boolean rVal = right.valid(t, p);
+	return (op == Op.AND ==> (lVal && rVal))
+	    && (op == Op.OR ==> (lVal || rVal));
+    }
+    spec boolean wasValid(Table t, int p) {
+	boolean lVal = left.wasValid(t, p);
+	boolean rVal = right.wasValid(t, p);
+	return (op == Op.AND ==> (lVal && rVal))
+	    && (op == Op.OR ==> (lVal || rVal));
+    }
+
+    //FIXME: unbounded number of nested formulaexpr cant translate properly!
+    spec boolean validH(Table t, Tuple p) {
+	boolean lVal = ((CmpExpr) left).valid(t, p);
+	boolean rVal = ((CmpExpr) right).valid(t, p);
+	return (op == Op.AND ==> (lVal && rVal))
+	    && (op == Op.OR ==> (lVal || rVal));
+    }
+    spec boolean wasValidH(Table t, int p) {
+	boolean lVal = ((CmpExpr) left).wasValid(t, p);
+	boolean rVal = ((CmpExpr) right).wasValid(t, p);
+	return (op == Op.AND ==> (lVal && rVal))
+	    && (op == Op.OR ==> (lVal || rVal));
+    }
+
+    public String toString() { return left + " " + op + " " + right; }
+
+}
+class CmpExpr extends BExpr {    
+    spec PBJString columnId; 
+    spec Literal right;
+    public CmpExpr(Op op, PBJString columnId, Literal right) {
+	super(op);
+	this.columnId = columnId;
+	this.right = right;
+    }
+    spec boolean valid(Table t, Tuple p) {
+	Literal left = t.lookup(p, columnId);
+	return (op == Op.EQ ==> left == right)
+	    && (op == Op.NE ==> left != right)
+	    ;
+    }
+    spec boolean wasValid(Table t, int p) {
+	Literal left = t.lookup(p, columnId, true);
+	return (op == Op.EQ ==> left == right)
+	    && (op == Op.NE ==> left != right)
+	    ;
+    }
+    public String toString() { return columnId + " " + op + " " + right; }
+}
+
+
+class ResultSet extends AbstractResultSet {
+    spec ArrayList<Tuple> results;
+    spec public ArrayList<Tuple> results() { return this.results; }
+    
+    private int cursor;
+    
+    public ResultSet(ArrayList<Tuple> results) { 
+	this.results = results;
+	this.cursor = 0;
+    }
+    
+    public boolean absolute(int row) throws SQLException {
+	this.cursor = (row == -1) ? this.results.size() : row;
+	if((this.results.size() != 0) &&
+	   (this.cursor > 0) &&
+	   (this.cursor <= this.results.size()))
+	    return true;
+	return false;
+    }
+    
+    public void afterLast() throws SQLException {
+	this.cursor = this.results.size() + 1;
+    }
+    
+    public void beforeFirst() throws SQLException {
+	this.cursor = 0;
+    }
+    
+    public boolean first() throws SQLException {
+	this.cursor = 1;
+	if(this.results.size() > 0) 
+	    return true;
+	return false;
+    }
+
+    public int getInt(int columnIndex) throws SQLException {
+	if((this.cursor > 0) && (this.cursor <= this.results.size()))
+	    return Integer.parseInt(
+				    this.results.get(this.cursor-1).get(columnIndex-1).stringValue());
+	return 0;
+    }
+
+    public Object getObject(int columnIndex) throws SQLException {
+	if((this.cursor > 0) && (this.cursor <= this.results.size()))
+	    return this.results.get(this.cursor-1).get(columnIndex-1);
+	return null;
+    }
+
+    public int getRow() throws SQLException {
+	return this.cursor;
+    }
+
+    public String getString(int columnIndex) throws SQLException {
+	if((cursor > 0)
+	   && (cursor <= results.size())
+	   && (columnIndex <= results.get(cursor-1).value().size())){
+	    return results.get(cursor-1).get(columnIndex-1).stringValue();}
+	return null;
+    }
+
+    public boolean isAfterLast() throws SQLException {
+	return (this.cursor > this.results.size());
+    }
+
+    public boolean isBeforeFirst() throws SQLException {
+	return (this.cursor < 1);
+    }
+
+    public boolean isFirst() throws SQLException {
+	return (this.cursor == 1);
+    }
+
+    public boolean isLast() throws SQLException {
+	return (this.cursor == this.results.size());
+    }
+
+    public boolean last() throws SQLException {
+	this.cursor = this.results.size();
+	if(this.results.size() > 0)
+	    return true;
+	return false;
+    }
+
+    public boolean next() throws SQLException {
+	this.cursor++;
+	if((this.results.size() > 0)
+	   && (this.cursor > 0)
+	   && (this.cursor <= this.results.size()))
+	    return true;
+	return false;
+    }
+
+    public boolean previous() throws SQLException {
+	this.cursor--;
+	if((this.results.size() > 0)
+	   && (this.cursor > 0)
+	   && (this.cursor <= this.results.size()))
+	    return true;
+	return false;
+    }
+
+    public String toString() { 
+	return "ResultSet: " + (results == null ? "N/A" : results.toString()); 
+    }
+}
+
+public class Jdbc ensures valid() {
+
+    spec static SqlCmd CreateDB = SqlCmd.CREATE_DB;
+    spec static SqlCmd Connect = SqlCmd.CONNECT;
+    spec static SqlCmd Close = SqlCmd.CLOSE;
+    spec static SqlCmd CreateTable = SqlCmd.CREATE_TABLE;
+    spec static SqlCmd Select = SqlCmd.SELECT;
+    spec static SqlCmd Update = SqlCmd.UPDATE;
+    spec static SqlCmd Insert = SqlCmd.INSERT;
+    spec static SqlCmd Delete = SqlCmd.DELETE;
+
+    spec static final Op EQ = Op.EQ;
+    spec static final Op NE = Op.NE;
+
+    spec PBJMap<PBJString,Database> databases;
+    spec boolean connected;
+    spec Database currdb;
+    spec ResultSet queryResult;
+
+    spec public PBJMap<PBJString,Database> databases() { return databases; }
+    spec public ResultSet queryResult() { return queryResult; }
+
+    public Jdbc() {
+	this.connected = false;
+	this.databases = new PBJMap<PBJString,Database>();
+	ArrayList<Tuple> results = new ArrayList<Tuple>();
+	this.queryResult = new ResultSet(results);
+    }
+
+    public void getConnection(PBJString id, PBJString username, PBJString password)
+    {
+	this.execute("create database " + id);
+	this.execute("connect " + id);
+    }
+
+    spec boolean valid() {
+	return databases != null
+	    && databases.valid()
+	    && uniqueDatabases()
+	    && queryResult != null
+// 	    && queryResult.valid()
+	    && all PBJString i : databases.keySet_spec() | 
+	    (i != null 
+	     && databases.get_spec(i) != null 
+// 	     && databases.get_spec(i).id == i 
+	     && databases.get_spec(i).valid())
+	    ;
+    }
+
+
+    spec boolean uniqueDatabases() {
+	PBJInternSet<PBJString> keys = databases.keySet_spec();
+	return all PBJString i : keys |
+	    all PBJString j : keys |
+	    (i == j || databases.get_spec(i) != databases.get_spec(j))
+	    ;
+    }
+
+    spec boolean databaseExists(PBJString id) {
+	return databases.containsKey_spec(id);
+    }
+
+    spec boolean databaseExistsAndValid(PBJString id) {
+	Database db = databases.get_spec(id);
+	return databaseExists(id)
+	    && db != null
+	    && db.id == id
+	    && db.tables != null
+	    && db.tables.valid()
+	    ;
+    }
+
+    spec boolean hasNewTable(Database db) {
+	return all PBJString i : old.databases.keySet_spec() |
+	    databases.get_spec(i).tables != db.tables;
+    }
+
+    spec boolean dbAdd(PBJString id) {
+	Database db = databases.get_spec(id);
+	return db != null && db.id == id 
+	    && db.tables != null && db.tables.size() == 0
+	    && hasNewTable(db)
+	    && databases.put_spec(id, db)
+	    ;
+    }
+
+    spec boolean tbAdd(PBJString id, int arity, PBJString[] fields, ResultSet queryResult) {
+	Database db = currdb;
+	Table tb = db.tables.get_spec(id);
+	return tb != null && tb.id == id && tb.rows != null 
+	    && tb.rows != queryResult.results() && tb.rows.size() == 0
+	    && tb.arity == arity
+	    && (all int i : 0 .. arity - 1 | tb.fields.get_spec(i) == fields[i])	    
+	    && tb.fields.size() == arity
+	    && tb.primaryKey == fields[0]
+	    && db.tables.put_spec(id, tb);
+    }
+
+    spec public boolean createDBSpec(PBJString id, boolean result) {
+	boolean has = old.databaseExists(id);
+	return (!has ==> dbAdd(id))
+	    && (has ==> databases.equals_spec(old.databases) )
+	    && (result <==> !has)
+	    ;
+    }
+
+    HashSet<Object> createDBModifies(PBJString id) {
+    	HashSet<Object> res = new HashSet<Object>();
+	res.add(this);
+	res.add(databases);
+	return res;
+    }
+
+    spec public boolean connectSpec(PBJString id, boolean result) {
+	boolean has = old.databaseExists(id);        
+	return (old.connected ==> 
+		(connected && currdb == old.currdb && !result)) &&
+ 	    (!old.connected ==> 
+	     ((has ==> (connected && currdb == databases.get_spec(id) && result)) &&
+	      (!has ==> (!connected && !result))));
+    }
+    
+    spec public boolean closeSpec(boolean result) {
+	return !connected &&
+	    (old.connected <==> !result);
+    }
+
+    spec public boolean createTableSpec(PBJString id, int arity, PBJString[] fields, boolean result) {
+	Database db = currdb;	
+	boolean has = db.old.tableExists(id);
+	return (!has ==> tbAdd(id, arity, fields, queryResult))
+	    && (has ==> db.tables.equals_spec(db.old.tables) )
+	    && (result <==> !has)
+	    ;
+    }
+
+    HashSet<Object> createTableModifies(PBJString id) {
+    	HashSet<Object> res = new HashSet<Object>();
+	res.add(currdb.tables);
+	return res;
+    }
+
+    spec public boolean insertSpec(PBJString id, Literal[] val, boolean result) {
+	Database db = currdb;
+	Table tb = db.tables.get_spec(id);
+	int rowId = tb.old.rows.size();	
+	return tb.add(rowId, val)
+	    && result <==> true;
+    }
+
+    HashSet<Object> insertModifies(PBJString id) {
+    	HashSet<Object> res = new HashSet<Object>();
+	res.add(currdb.tables.get(id).rows);
+	return res;
+    }
+
+    spec public boolean deleteSpec(PBJString id, BExpr where, boolean result) {
+	Database db = currdb;	
+	Table tb = db.tables.get_spec(id);
+	return 
+	    tb.remove(where) 
+	    && result <==> true
+	    ;
+    }
+
+    HashSet<Object> deleteModifies(PBJString id) {
+    	HashSet<Object> res = new HashSet<Object>();
+	res.add(currdb.tables.get(id).rows);
+	return res;
+    }
+
+    spec public boolean selectSpec(PBJString id, BExpr where, boolean result) {
+	Database db = currdb;	
+	Table tb = db.tables.get_spec(id);
+	return queryResult.results() == old.queryResult.results()
+	    && tb.select(where, queryResult)
+	    && result <==> true
+	    ;
+    }
+
+    HashSet<Object> selectModifies() {
+    	HashSet<Object> res = new HashSet<Object>();
+	res.add(queryResult.results());
+	return res;
+    }
+
+    spec public boolean updateSpec(PBJString id, PBJString colIdSet, Literal valSet, BExpr where,
+				   boolean result) {
+	Database db = currdb;	
+	Table tb = db.tables.get_spec(id);
+	return tb.set(colIdSet, valSet, where) 
+	    && result <==> true;
+    }
+
+    HashSet<Object> updateModifies(PBJString id) {
+    	HashSet<Object> res = new HashSet<Object>();
+	for (Tuple t : currdb.tables.get(id).rows)
+	    res.add(t.value());
+	return res;
+    }
+
+    public Object execute(String cmd) {
+	Object res = false;
+	ANTLRStringStream in = new ANTLRStringStream(cmd);
+        MiniSqlLexer lexer = new MiniSqlLexer(in);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        MiniSqlParser parser = new MiniSqlParser(tokens);
+	System.out.println("--- executing '" + cmd + "' ---");
+	try {
+	    List<Object> cmdP = (List<Object>) parser.command();
+	    res = execute((SqlCmd) cmdP.get(0), (Object[]) cmdP.get(1));
+	} catch (Exception e) {
+	    System.out.println("something went wrong during sql command: '" + cmd + "'!");
+	    e.printStackTrace();
+	}
+	return res;
+    }
+
+    public Object execute(SqlCmd cmd, Object[] args) {
+	boolean res = false;
+	if (cmd == CreateDB)
+	    res = createDB((PBJString) args[0]);
+	else if (cmd == Connect)
+	    res = connect((PBJString) args[0]);
+	else if (cmd == Close)
+	    res = close();
+	else if (cmd == CreateTable)
+	    res = createTable((PBJString) args[0], (Integer) args[1], (PBJString[]) args[2]);
+	else if (cmd == Insert)
+	    res = insert((PBJString) args[0], (Literal[]) args[1]);
+	else if (cmd == Delete)
+	    res = delete((PBJString) args[0], (BExpr) args[1]);
+	else if (cmd == Update)
+	    res = update((PBJString) args[0], (PBJString) args[1], (Literal) args[2], (BExpr) args[3]);
+	else if (cmd == Select)
+	    res = select((PBJString) args[0], (BExpr) args[1]);
+	return res;
+    }
+
+    public boolean select(PBJString id, BExpr where)
+	modifies fields ResultSet: results, ArrayList<Tuple>:size, ArrayList<Tuple>:elementData
+	modifies objects selectModifies()
+	ensures selectSpec(id, where, result)
+    {
+	int i = 1 / 0;
+	return true;
+    }
+    public boolean update(PBJString id, PBJString colIdSet, Literal valSet, BExpr where) 
+	modifies fields ArrayList<Literal>:elementData
+	modifies objects updateModifies(id) 
+	ensures updateSpec(id, colIdSet, valSet, where, result)
+    {
+	int i = 1 / 0;
+	return true;
+    }
+
+    public boolean insert(PBJString id, Literal[] val) 
+	modifies fields ArrayList<Tuple>:size, ArrayList<Tuple>:elementData
+	modifies objects insertModifies(id)
+	adds 1 Tuple, 1 ArrayList<Literal>
+	ensures insertSpec(id, val, result)
+    {
+	int i = 1 / 0;
+	return true;
+    }
+
+    public boolean delete(PBJString id, BExpr where) 
+	modifies fields ArrayList<Tuple>:size, ArrayList<Tuple>:elementData
+	modifies objects deleteModifies(id)	
+	ensures deleteSpec(id, where, result)
+    {
+	Database db = currdb;	
+	int i = 1 / 0;
+	return true;
+    }
+
+    public boolean createDB(PBJString id) 
+	modifies fields PBJMap<PBJString,Database>:size, PBJMap<PBJString,Database>:keys, 
+	PBJMap<PBJString,Database>:values, Database:tables
+	modifies objects createDBModifies(id)
+	adds 1 Database, 1 PBJMap<PBJString,Table>	
+	ensures createDBSpec(id, result)
+    {
+	int i = 1 / 0;
+	return true;
+    }
+
+    public boolean connect(PBJString id) 
+	modifies fields Jdbc:connected, Jdbc:currdb
+	ensures connectSpec(id, result)
+    {
+	int i = 1 / 0;
+	return true;
+    }
+
+    public boolean close() 
+	modifies fields Jdbc:connected
+	ensures closeSpec(result)
+    {
+	int i = 1 / 0;
+	return true;
+    }
+
+    public boolean createTable(PBJString id, int arity, PBJString[] fields) 
+	modifies fields PBJMap<PBJString,Table>:size, PBJMap<PBJString,Table>:keys, 
+	PBJMap<PBJString,Table>:values, Table:arity, Table:fields, Table:rows
+	modifies objects createTableModifies(id)
+	adds 1 Table, 1 ArrayList<Tuple>, 1 ArrayList<PBJString>	
+	ensures createTableSpec(id, arity, fields, result)
+    {
+	int i = 1 / 0;
+	return true;
+    }
+
+    public String queryResultToString() { return "query result: " + queryResult; }
+
+    void initTest1() {
+	PBJString dbId = new PBJString("shop");
+	PBJString tableId = new PBJString("inventory");
+	PBJString colId = new PBJString("price");
+	BExpr where = new CmpExpr(EQ, colId, Literal.get(0));
+	initTest1H(dbId, tableId, colId, where);
+    }
+
+    void initTest1H(PBJString dbId, PBJString tableId, PBJString colId, BExpr where) 
+	adds 1 Database, 1 PBJMap<PBJString,Table>,
+	1 Table, 2 ArrayList<Tuple>, 2 ArrayList<PBJString>,
+	3 Tuple, 3 ArrayList<Literal>, 2 Literal
+	ensures initTest1Spec(dbId, tableId, colId, where) {
+	
+    }
+
+    spec boolean initTest1Spec(PBJString dbId, PBJString tableId, PBJString colId, BExpr where) {
+	return databaseInit(dbId, tableId, colId, where);
+    }
+
+    spec boolean databaseInit(PBJString dbId, PBJString tableId, PBJString colId, BExpr where) {
+	Database db = databases.get_spec(dbId);
+	Table table = db.tables.get_spec(tableId);
+	return databases.containsKey_spec(dbId)
+	    && currdb == db
+	    && connected
+	    && db.tables.containsKey_spec(tableId) 
+	    && table.fields.contains_spec(colId)
+	    && table.select(where, queryResult)
+	    && queryResult.results().size() == 2
+	    ;
+    }
+
+    public String toString() { 
+	String res0 = "";
+	return "databases:\n" + 
+	    databases + "\n" + 
+	    (connected ? ("connected to db " + currdb.id) : "not connected") + "\n"
+	    ;
+    }
+
+    public static void main(String[] args) {
+	LogMap.SolverOpt_debugLevel(0);
+	LogMap.SolverOpt_IntBitWidth = 5;
+// 	LogMap.SolverOpt_ArrayMaxSize = 2;
+	Jdbc db = new Jdbc();
+	System.out.println(db);
+	System.out.println(db.execute("create database here"));
+	System.out.println(db);
+	System.out.println(db.execute("create database there"));
+	System.out.println(db);
+	System.out.println(db.execute("connect here"));
+	System.out.println(db);
+	System.out.println(db.execute("create table apple ( one, two, three )"));
+	System.out.println(db);
+	System.out.println(db.execute("create table kiwi ( four, five )"));
+	System.out.println(db);
+	System.out.println(db.execute("insert into apple values ( 10, 2, 'ab' )"));
+	System.out.println(db);
+	System.out.println(db.execute("insert into kiwi values (11, 6)"));
+	System.out.println(db);
+	System.out.println(db.execute("insert into kiwi values (12, 5)"));
+	System.out.println(db);
+	System.out.println(db.execute("select * from kiwi"));
+	System.out.println(db);
+	System.out.println(db.queryResultToString());
+	System.out.println(db.execute("select * from kiwi where five = 5"));
+	System.out.println(db);
+	System.out.println(db.queryResultToString());
+	System.out.println(db.execute("select * from kiwi where five = 5 and four = 12"));
+	System.out.println(db);
+	System.out.println(db.queryResultToString());
+	System.out.println(db.execute("select * from kiwi where five = 5 and four = 11"));
+	System.out.println(db);
+	System.out.println(db.queryResultToString());
+	System.out.println(db.execute("update kiwi set four = 13 where five = 5"));
+	System.out.println(db);
+	System.out.println(db.execute("delete from kiwi where four = 13"));
+	System.out.println(db);
+	System.out.println(db.execute("delete from apple where two = 2"));
+	System.out.println(db);
+	System.out.println(db.execute("insert into apple values ( 10, 2, 'cd' )"));
+	System.out.println(db);
+	System.out.println(db.execute("close database"));
+	System.out.println(db);
+	System.out.println(db.execute("connect there"));
+	System.out.println(db);
+	System.out.println(db.execute("create table avocado ( six, eight )"));
+	System.out.println(db);
+	System.out.println(db.execute("insert into avocado values ( 0, 4 )"));
+	System.out.println(db);
+	System.out.println(db.execute("insert into avocado values ( 10, 3 )"));
+	System.out.println(db);
+	System.out.println(db.execute("close database"));
+	System.out.println(db);
+	System.out.println(db.execute("connect here"));
+	System.out.println(db);
+	System.out.println(db.execute("insert into kiwi values ( 12, 7 )"));
+	System.out.println(db);
+	System.out.println(db.execute("select * from apple where two = 2"));
+	System.out.println(db);
+	System.out.println(db.queryResultToString());
+	System.out.println(db.execute("update apple set two = -1 where one = 10"));
+	System.out.println(db);
+	System.out.println(db.execute("select * from apple where three = 'cd'"));
+	System.out.println(db);
+	System.out.println(db.queryResultToString());
+	System.out.println(db.execute("select * from kiwi"));
+	System.out.println(db);
+	System.out.println(db.queryResultToString());
+	
+// 	db.initTest1();
+// 	System.out.println(db);
+// 	System.out.println(db.queryResultToString());
+
+
+    }
+}
+
+
+

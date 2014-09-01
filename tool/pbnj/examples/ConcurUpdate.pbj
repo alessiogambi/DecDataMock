@@ -1,0 +1,33 @@
+
+class MyInt {
+    spec int theInt;
+}
+
+public class ConcurUpdate {
+
+    spec MyInt i = new MyInt();
+
+    public void inc() ensures this.i.theInt == this.old.i.theInt + 1 {
+	    // sleep so that another thread will be scheduled
+	try {
+	    Thread.currentThread().sleep(100);
+	} catch(Exception e) {}
+	i.theInt++;
+    }
+
+    public static void main(String[] args) {
+	final ConcurUpdate c = new ConcurUpdate();
+	Thread t = new Thread() {
+		public void run() {
+		    System.out.println("A " + c.i.theInt);
+		    c.inc();
+		    System.out.println("B " + c.i.theInt);
+		}
+	    };
+	t.start();
+	System.out.println("C " + c.i.theInt);
+	c.i.theInt = 34;
+	System.out.println("D " + c.i.theInt);
+    }
+    
+}

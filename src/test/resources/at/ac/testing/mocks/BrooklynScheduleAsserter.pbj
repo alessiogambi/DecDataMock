@@ -1,0 +1,278 @@
+package at.ac.testing.mocks;
+
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class BrooklynScheduleAsserter {
+	
+	spec BrooklynSchedule schedule;
+	
+	public BrooklynScheduleAsserter( BrooklynSchedule schedule ){
+		this.schedule = schedule;
+	}
+	
+	spec boolean containsAsInput( TimedAction action ){
+		return
+			some TimedAction inputAction : schedule.inputActions | (
+				action.matches( inputAction )
+			)
+		;
+	}
+	
+	spec boolean containsAsActions( TimedAction action ){
+		return
+			some TimedAction actionA : schedule.actions | (
+				action.matches( actionA )
+			)
+		;
+	}
+	
+	spec boolean hasSustainedActions( ){
+		return
+			getSustainedActions( ).size() > 0	
+		;
+	}
+	
+	spec PBJInternSet<TimedAction> getSustainedActions(){
+		return {
+			all TimedAction a : schedule.actions | (
+				some TimedAction b : schedule.actions | (
+					sustainedActionsRecursive( a, b ) )
+				)
+		};
+	}
+	
+	spec boolean sustainedActionsRecursive( TimedAction a, TimedAction b ){
+		return
+			! concurrentActions( a, b )
+			&&
+			some TimedAction t : schedule.actions | 
+			(
+				isTrigger( t ) && // This will trigger the recursive check 
+				a.type == t.type &&
+				b.type == t.type &&
+				withinStabilityPeriodOf( t, a ) &&
+				withinStabilityPeriodOf( t, b ) &&
+				no TimedAction c : schedule.actions | (
+					withinStabilityPeriodOf( t, c ) &&
+					positionOf( c, this.schedule.actions ) > positionOf( t, this.schedule.actions ) && //Simultaneous schedule.actions !
+					c.type != t.type
+				)
+			)
+		;			
+	}
+
+	spec boolean withinStabilityPeriodOf( TimedAction a, TimedAction b ){
+		int stabilityPeriodOfA = (ActionType.SCALE_UP == a.type) ? schedule.stabilityPeriodUp :
+					(ActionType.SCALE_DOWN == a.type) ? schedule.stabilityPeriodDown : 0;
+		return
+			b.time <= a.time + stabilityPeriodOfA  
+		;
+	}
+	spec boolean hasMonitoringBlips( ){
+		return
+			getBlipActions( ).size() > 0	
+		;
+	}
+
+	spec PBJInternSet<TimedAction> getBlipActions(){
+		return {
+			all TimedAction a : schedule.actions | (
+				some TimedAction b : schedule.actions | ( blipRecursive( a, b ) )
+				)
+		};
+	}
+
+
+	spec int positionOf( TimedAction action, TimedAction[] actions ){
+		return {
+			some int position : 0 .. actions.length - 1| (
+				action == actions[ position ]
+			)
+		};
+	
+	}
+
+
+	spec boolean blipRecursive( TimedAction a, TimedAction b ){
+		return
+			strictlyFollows( a, b )
+			&&
+			a.type != ActionType.STAY && b.type == ActionType.STAY
+			&&
+			(
+				// Here we use the recursive form on stability 
+				a.type == ActionType.SCALE_UP && ! stableUp( b.time )
+				||
+				a.type == ActionType.SCALE_DOWN && ! stableDown( b.time )
+			)
+		;			
+	}
+	
+	spec PBJInternSet<TimedAction> getTimedActionsBetween( int time1, int time2 ){
+		return { 
+			all TimedAction action : schedule.actions | ( action.time >= time1 && action.time <= time2 )	
+		};
+	}
+	
+	spec boolean stable(int time){
+		return
+			stableUp( time ) && stableDown( time )
+		;
+	}
+	
+	
+	spec boolean stableUp(int time){
+		return
+			(
+				time < 0
+			)
+			
+			||
+			(
+				// Where there is an action up it cannot be stable up
+				no TimedAction action1 : schedule.actions | ( action1.time == time && action1.type == ActionType.SCALE_UP )
+				&&
+				schedule.stabilityPeriodUp > 0 ==> 
+					// We are stable in t if there are no schedule.actions in before t such that they are Triggers UP !
+					! existsTriggerUpBetween( time - schedule.stabilityPeriodUp + 1, time)
+			)
+		;
+	}
+
+	spec boolean stableDown(int time){
+		return
+			( 
+				time < 0 
+			)
+			||
+			(
+				no TimedAction action : this.schedule.actions | ( action.time == time && action.type == ActionType.SCALE_DOWN )
+				&&
+				schedule.stabilityPeriodDown > 0 ==> 
+					! existsTriggerDownBetween( time - schedule.stabilityPeriodDown + 1, time)
+			)
+		;
+	}
+	
+	spec boolean existsTriggerUpBetween( int time1, int time2 ){
+		PBJInternSet<TimedAction> actionsInBetween = getTimedActionsBetween(time1, time2);
+		return 
+			some TimedAction action : actionsInBetween | ( isTriggerUp( action ) )	
+		;
+	}
+	
+	spec boolean existsTriggerDownBetween( int time1, int time2 ){
+		PBJInternSet<TimedAction> actionsInBetween = getTimedActionsBetween(time1, time2);
+		return 
+			some TimedAction action : actionsInBetween | ( isTriggerDown( action ) )	
+		;
+	}
+	
+	spec boolean isTrigger(TimedAction action ){
+		return
+			isTriggerUp( action ) || isTriggerDown( action )
+		;	
+	}
+	
+	spec boolean isTriggerUp(TimedAction action ){
+		return
+			action.type == ActionType.SCALE_UP &&
+			(
+				getTimedActionsBetween(action.time - 1 - schedule.stabilityPeriodUp, action.time-1).size() == 0
+				||
+			    stableUp( action.time - 1 ) 
+				||
+				( ! stableUp( action.time - 1 ) && 
+					(
+						schedule.stabilityPeriodUp == 0 
+						||
+						some TimedAction lastBefore : getActionsBefore( action ) | (
+							strictlyFollows( lastBefore, action ) &&
+							lastBefore.type != ActionType.SCALE_UP &&
+							lastBefore.time > action.time - schedule.stabilityPeriodUp
+						)
+					)
+				)	
+			)
+		;	
+	}
+	
+	spec boolean isTriggerDown(TimedAction action ){
+		return
+			action.type == ActionType.SCALE_DOWN &&
+			( 
+				getTimedActionsBetween(action.time - 1 - schedule.stabilityPeriodDown, action.time-1).size() == 0
+			    ||
+				stableDown( action.time - 1 ) 
+				||
+				( ! stableDown( action.time - 1 ) &&
+					(
+						schedule.stabilityPeriodDown == 0 
+						||
+						some TimedAction lastBefore : getActionsBefore( action ) | (
+							strictlyFollows( lastBefore, action ) &&
+							lastBefore.type != ActionType.SCALE_DOWN &&
+							lastBefore.time > action.time - schedule.stabilityPeriodDown
+						)
+					)
+				)
+			)
+		;	
+	}
+	
+	spec boolean strictlyFollows( TimedAction a, TimedAction b ){
+		return
+			positionOf( b, this.schedule.actions ) == positionOf( a, this.schedule.actions ) + 1
+		;
+	}
+
+	spec boolean hasConcurrency( ){
+		return
+			getConcurrentActions( ).size() > 0	
+		;
+	}
+
+	spec PBJInternSet<TimedAction> getConcurrentActions(){
+		return {
+			all TimedAction a : schedule.actions | (
+				some TimedAction b : schedule.actions | (
+					a != b && concurrentActions(a, b)
+			))
+		};
+	}
+	
+	spec boolean concurrentActions(TimedAction a, TimedAction b ){
+		return
+			getControlInterval( a.time ) == getControlInterval( b.time )
+			&&
+			a.type != ActionType.STAY
+			&&
+			b.type != ActionType.STAY
+		;
+	}
+		
+	spec int getControlInterval(int time){
+		if( schedule.controlPeriod == 0 ) 
+			return time; 
+		else 
+			return roundDown(time - schedule.actions[ 0 ].time,  schedule.controlPeriod);
+	}
+	
+	spec int roundDown( int nom, int den ){
+		return
+			( nom / den * den > nom ) ? ( nom / den ) - 1 : nom / den
+		;  
+	}
+	
+	spec PBJInternSet<TimedAction> getActionsBefore( TimedAction a ){
+		return {
+			all TimedAction action : schedule.actions | (
+				action.time < a.time
+			)
+		};
+	}
+}	

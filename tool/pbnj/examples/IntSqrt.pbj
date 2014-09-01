@@ -1,0 +1,19 @@
+import polyglot.ext.pbnj.tologic.LogMap;
+
+public class IntSqrt {   
+
+    public pure int IntSqrt(int i) 
+	requires i >= 0
+	ensures result > 0 && 
+	        result <= i / result && 
+	        result + 1 >  i / (result + 1) {
+	return 1;
+    }	
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1)
+	IntSqrt t1 = new IntSqrt();	
+	System.out.println(t1.IntSqrt(10));
+    }
+
+}

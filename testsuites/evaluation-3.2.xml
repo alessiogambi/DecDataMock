@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="ICSE 2015 - Evaluation 3.2 Cost-Effectiveness"
+	verbose="1" annotations="JDK">
+	<test name="Original Test Cases">
+		<classes>
+			<class name="at.ac.testing.brooklyn.evaluation3.AutoScalerPolicyTest" />
+			<class name="at.ac.testing.brooklyn.evaluation3.AutoScalerPolicyMetricTest" />
+		</classes>
+	</test>
+	<test name="Automated Test 2">
+		<classes>
+			<class name="at.ac.testing.brooklyn.evaluation3.ConflictingEventsTest">
+			</class>
+		</classes>
+	</test>
+</suite>

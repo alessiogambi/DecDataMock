@@ -1,0 +1,1912 @@
+/*
+ * @(#)GridBagLayout.java	1.64 04/06/08
+ *
+ * Copyright 2004 Sun Microsystems, Inc. All rights reserved.
+ * SUN PROPRIETARY/CONFIDENTIAL. Use is subject to license terms.
+ */
+//package java.awt;
+package pbnj.awt;
+
+import java.awt.Insets;
+import java.awt.Component;
+import java.awt.LayoutManager2;
+import java.awt.Container;
+import java.awt.Rectangle;
+import java.awt.Dimension;
+
+import pbnjx.swing.PBJButton;
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.LogMap;
+
+import pbnj.util.Hashtable;
+import pbnj.util.Vector;
+
+import pbnj.util.Arrays; //HS
+import pbnj.util.ArrayList; //HS
+
+/**
+ * The <code>GridBagLayout</code> class is a flexible layout
+ * manager that aligns components vertically and horizontally,
+ * without requiring that the components be of the same size.
+ * Each <code>GridBagLayout</code> object maintains a dynamic,
+ * rectangular grid of cells, with each component occupying
+ * one or more cells, called its <em>display area</em>.
+ * <p>
+ * Each component managed by a <code>GridBagLayout</code> is associated with
+ * an instance of {@link GridBagConstraints}.  The constraints object
+ * specifies where a component's display area should be located on the grid
+ * and how the component should be positioned within its display area.  In
+ * addition to its constraints object, the <code>GridBagLayout</code> also
+ * considers each component's minimum and preferred sizes in order to
+ * determine a component's size.
+ * <p>
+ * The overall orientation of the grid depends on the container's
+ * {@link ComponentOrientation} property.  For horizontal left-to-right
+ * orientations, grid coordinate (0,0) is in the upper left corner of the
+ * container with x increasing to the right and y increasing downward.  For
+ * horizontal right-to-left orientations, grid coordinate (0,0) is in the upper
+ * right corner of the container with x increasing to the left and y
+ * increasing downward.
+ * <p>
+ * To use a grid bag layout effectively, you must customize one or more
+ * of the <code>GridBagConstraints</code> objects that are associated
+ * with its components. You customize a <code>GridBagConstraints</code>
+ * object by setting one or more of its instance variables:
+ * <p>
+ * <dl>
+ * <dt>{@link GridBagConstraints#gridx},
+ * {@link GridBagConstraints#gridy}
+ * <dd>Specifies the cell containing the leading corner of the component's 
+ * display area, where the cell at the origin of the grid has address
+ * <code>gridx&nbsp;=&nbsp;0</code>,
+ * <code>gridy&nbsp;=&nbsp;0</code>.  For horizontal left-to-right layout,
+ * a component's leading corner is its upper left.  For horizontal 
+ * right-to-left layout, a component's leading corner is its upper right.
+ * Use <code>GridBagConstraints.RELATIVE</code> (the default value)
+ * to specify that the component be placed immediately following
+ * (along the x axis for <code>gridx</code> or the y axis for 
+ * <code>gridy</code>) the component that was added to the container
+ * just before this component was added.
+ * <dt>{@link GridBagConstraints#gridwidth},
+ * {@link GridBagConstraints#gridheight}
+ * <dd>Specifies the number of cells in a row (for <code>gridwidth</code>)
+ * or column (for <code>gridheight</code>)
+ * in the component's display area.
+ * The default value is 1.
+ * Use <code>GridBagConstraints.REMAINDER</code> to specify
+ * that the component's display area will be from <code>gridx</code>
+ * to the last cell in the row (for <code>gridwidth</code>)
+ * or from <code>gridy</code> to the last cell in the column
+ * (for <code>gridheight</code>).
+ *
+ * Use <code>GridBagConstraints.RELATIVE</code> to specify
+ * that the component's display area will be from <code>gridx</code>
+ * to the next to the last cell in its row (for <code>gridwidth</code>
+ * or from <code>gridy</code> to the next to the last cell in its
+ * column (for <code>gridheight</code>).
+ * 
+ * <dt>{@link GridBagConstraints#fill}
+ * <dd>Used when the component's display area
+ * is larger than the component's requested size
+ * to determine whether (and how) to resize the component.
+ * Possible values are
+ * <code>GridBagConstraints.NONE</code> (the default),
+ * <code>GridBagConstraints.HORIZONTAL</code>
+ * (make the component wide enough to fill its display area
+ * horizontally, but don't change its height),
+ * <code>GridBagConstraints.VERTICAL</code>
+ * (make the component tall enough to fill its display area
+ * vertically, but don't change its width), and
+ * <code>GridBagConstraints.BOTH</code>
+ * (make the component fill its display area entirely).
+ * <dt>{@link GridBagConstraints#ipadx},
+ * {@link GridBagConstraints#ipady}
+ * <dd>Specifies the component's internal padding within the layout,
+ * how much to add to the minimum size of the component.
+ * The width of the component will be at least its minimum width
+ * plus <code>ipadx</code> pixels. Similarly, the height of
+ * the component will be at least the minimum height plus
+ * <code>ipady</code> pixels.
+ * <dt>{@link GridBagConstraints#insets}
+ * <dd>Specifies the component's external padding, the minimum
+ * amount of space between the component and the edges of its display area.
+ * <dt>{@link GridBagConstraints#anchor}
+ * <dd>Used when the component is smaller than its display area
+ * to determine where (within the display area) to place the component.
+ * There are two kinds of possible values: relative and absolute.  Relative
+ * values are interpreted relative to the container's
+ * <code>ComponentOrientation</code> property while absolute values
+ * are not.  Valid values are:</dd>
+ * <p>
+ * <center><table BORDER=0 COLS=2 WIDTH=800 SUMMARY="absolute and relative values as described above">
+ * <tr>
+ * <th><P ALIGN="LEFT">Absolute Values</th>
+ * <th><P ALIGN="LEFT">Relative Values</th>
+ * </tr>
+ * <tr>
+ * <td>
+ * <li><code>GridBagConstraints.NORTH</code></li>
+ * <li><code>GridBagConstraints.SOUTH</code></li>
+ * <li><code>GridBagConstraints.WEST</code></li>
+ * <li><code>GridBagConstraints.EAST</code></li>
+ * <li><code>GridBagConstraints.NORTHWEST</code></li>
+ * <li><code>GridBagConstraints.NORTHEAST</code></li>
+ * <li><code>GridBagConstraints.SOUTHWEST</code></li>
+ * <li><code>GridBagConstraints.SOUTHEAST</code></li>
+ * <li><code>GridBagConstraints.CENTER</code> (the default)</li>
+ * </td>
+ * <td>
+ * <li><code>GridBagConstraints.PAGE_START</code></li>
+ * <li><code>GridBagConstraints.PAGE_END</code></li>
+ * <li><code>GridBagConstraints.LINE_START</code></li>
+ * <li><code>GridBagConstraints.LINE_END</code></li>
+ * <li><code>GridBagConstraints.FIRST_LINE_START</code></li>
+ * <li><code>GridBagConstraints.FIRST_LINE_END</code></li>
+ * <li><code>GridBagConstraints.LAST_LINE_START</code></li>
+ * <li><code>GridBagConstraints.LAST_LINE_END</code></li>
+ * </ul>
+ * </td>
+ * </tr>
+ * </table></center><p>
+ * <dt>{@link GridBagConstraints#weightx},
+ * {@link GridBagConstraints#weighty}
+ * <dd>Used to determine how to distribute space, which is
+ * important for specifying resizing behavior.
+ * Unless you specify a weight for at least one component
+ * in a row (<code>weightx</code>) and column (<code>weighty</code>),
+ * all the components clump together in the center of their container.
+ * This is because when the weight is zero (the default),
+ * the <code>GridBagLayout</code> object puts any extra space
+ * between its grid of cells and the edges of the container.
+ * </dl>
+ * <p>
+ * The following figures show ten components (all buttons)
+ * managed by a grid bag layout.  Figure 1 shows the layout for a horizontal,
+ * left-to-right container and Figure 2 shows the layout for a horizontal,
+ * right-to-left container.
+ * <p>
+ * <center><table COLS=2 WIDTH=600 summary="layout">
+ * <tr ALIGN=CENTER>
+ * <td>
+ * <img src="doc-files/GridBagLayout-1.gif" alt="The preceeding text describes this graphic (Figure 1)." ALIGN=center HSPACE=10 VSPACE=7>
+ * </td>
+ * <td>
+ * <img src="doc-files/GridBagLayout-2.gif" alt="The preceeding text describes this graphic (Figure 2)." ALIGN=center HSPACE=10 VSPACE=7>
+ * </td>
+ * <tr ALIGN=CENTER>
+ * <td>Figure 1: Horizontal, Left-to-Right</td>
+ * <td>Figure 2: Horizontal, Right-to-Left</td>
+ * </tr>
+ * </table></center>
+ * <p>
+ * Each of the ten components has the <code>fill</code> field
+ * of its associated <code>GridBagConstraints</code> object
+ * set to <code>GridBagConstraints.BOTH</code>.
+ * In addition, the components have the following non-default constraints:
+ * <p>
+ * <ul>
+ * <li>Button1, Button2, Button3: <code>weightx&nbsp;=&nbsp;1.0</code>
+ * <li>Button4: <code>weightx&nbsp;=&nbsp;1.0</code>,
+ * <code>gridwidth&nbsp;=&nbsp;GridBagConstraints.REMAINDER</code>
+ * <li>Button5: <code>gridwidth&nbsp;=&nbsp;GridBagConstraints.REMAINDER</code>
+ * <li>Button6: <code>gridwidth&nbsp;=&nbsp;GridBagConstraints.RELATIVE</code>
+ * <li>Button7: <code>gridwidth&nbsp;=&nbsp;GridBagConstraints.REMAINDER</code>
+ * <li>Button8: <code>gridheight&nbsp;=&nbsp;2</code>,
+ * <code>weighty&nbsp;=&nbsp;1.0</code>
+ * <li>Button9, Button 10:
+ * <code>gridwidth&nbsp;=&nbsp;GridBagConstraints.REMAINDER</code>
+ * </ul>
+ * <p>
+ * Here is the code that implements the example shown above:
+ * <p>
+ * <hr><blockquote><pre>
+ * import java.awt.*;
+ * import pbnj.util.*;
+ * import java.applet.Applet;
+ *
+ * public class GridBagEx1 extends Applet {
+ *
+ *     protected void makebutton(String name,
+ *                               GridBagLayout gridbag,
+ *                               GridBagConstraints c) {
+ *         Button button = new Button(name);
+ *         gridbag.setConstraints(button, c);
+ *         add(button);
+ *     }
+ *
+ *     public void init() {
+ *         GridBagLayout gridbag = new GridBagLayout();
+ *         GridBagConstraints c = new GridBagConstraints();
+ *
+ *         setFont(new Font("SansSerif", Font.PLAIN, 14));
+ *         setLayout(gridbag);
+ *
+ *         c.fill = GridBagConstraints.BOTH;
+ *         c.weightx = 1.0;
+ *         makebutton("Button1", gridbag, c);
+ *         makebutton("Button2", gridbag, c);
+ *         makebutton("Button3", gridbag, c);
+ *
+ *     	   c.gridwidth = GridBagConstraints.REMAINDER; //end row
+ *         makebutton("Button4", gridbag, c);
+ *
+ *         c.weightx = 0.0;		   //reset to the default
+ *         makebutton("Button5", gridbag, c); //another row
+ *
+ * 	   c.gridwidth = GridBagConstraints.RELATIVE; //next-to-last in row
+ *         makebutton("Button6", gridbag, c);
+ *
+ * 	   c.gridwidth = GridBagConstraints.REMAINDER; //end row
+ *         makebutton("Button7", gridbag, c);
+ *
+ * 	   c.gridwidth = 1;	   	   //reset to the default
+ * 	   c.gridheight = 2;
+ *         c.weighty = 1.0;
+ *         makebutton("Button8", gridbag, c);
+ *
+ *         c.weighty = 0.0;		   //reset to the default
+ * 	   c.gridwidth = GridBagConstraints.REMAINDER; //end row
+ * 	   c.gridheight = 1;		   //reset to the default
+ *         makebutton("Button9", gridbag, c);
+ *         makebutton("Button10", gridbag, c);
+ *
+ *         setSize(300, 100);
+ *     }
+ *
+ *     public static void main(String args[]) {
+ * 	   Frame f = new Frame("GridBag Layout Example");
+ * 	   GridBagEx1 ex1 = new GridBagEx1();
+ *
+ * 	   ex1.init();
+ *
+ * 	   f.add("Center", ex1);
+ * 	   f.pack();
+ * 	   f.setSize(f.getPreferredSize());
+ * 	   f.show();
+ *     }
+ * }
+ * </pre></blockquote><hr>
+ * <p>
+ * @version 	1.64, 06/08/04
+ * @author Doug Stein
+ * @see       java.awt.GridBagConstraints
+ * @see       java.awt.ComponentOrientation
+ * @since JDK1.0 
+ */
+public class GridBagLayout implements LayoutManager2,
+				      java.io.Serializable {
+
+    /* Maximum number of grid positions */
+  protected static final int MAXGRIDSIZE = 512;
+
+    /**
+     * The smallest grid that can be laid out by the grid bag layout.
+     */
+  protected static final int MINSIZE = 1;
+    /**
+     * The preferred grid size that can be laid out by the grid bag layout.
+     */
+  protected static final int PREFERREDSIZE = 2;
+
+    /**
+     * This hashtable maintains the association between
+     * a component and its gridbag constraints.
+     * The Keys in <code>comptable</code> are the components and the
+     * values are the instances of <code>GridBagConstraints</code>.
+     *
+     * @serial
+     * @see java.awt.GridBagConstraints
+     */
+    
+    protected Hashtable<Component,GridBagConstraints> comptable;
+
+    //HS
+    protected int SPEC_GRID;
+    protected boolean FALLBACK;
+    spec int gridCols; //HS
+    spec int gridRows; //HS
+    spec protected int parentW,parentH,parentGridW,parentGridH;
+    Component components[];
+    spec PBJButton[] buttons; //HS
+    /**
+     * This field holds a gridbag constraints instance
+     * containing the default values, so if a component
+     * does not have gridbag constraints associated with
+     * it, then the component will be assigned a
+     * copy of the <code>defaultConstraints</code>.
+     *
+     * @serial
+     * @see #getConstraints(Component)
+     * @see #setConstraints(Component, GridBagConstraints)
+     * @see #lookupConstraints(Component)
+     */
+  protected GridBagConstraints defaultConstraints;
+
+    /**
+     * This field holds the layout information
+     * for the gridbag.  The information in this field
+     * is based on the most recent validation of the
+     * gridbag.
+     * If <code>layoutInfo</code> is <code>null</code>
+     * this indicates that there are no components in
+     * the gridbag or if there are components, they have
+     * not yet been validated.
+     *
+     * @serial
+     * @see #getLayoutInfo(Container, int)
+     */
+  protected GridBagLayoutInfo layoutInfo;
+
+    /**
+     * This field holds the overrides to the column minimum
+     * width.  If this field is non-<code>null</code> the values are
+     * applied to the gridbag after all of the minimum columns
+     * widths have been calculated.
+     * If columnWidths has more elements than the number of
+     * columns, columns are added to the gridbag to match
+     * the number of elements in columnWidth.
+     *
+     * @serial
+     * @see #getLayoutDimensions()
+     */
+  public int columnWidths[];
+  
+   /**
+     * This field holds the overrides to the row minimum
+     * heights.  If this field is non-</code>null</code> the values are
+     * applied to the gridbag after all of the minimum row
+     * heights have been calculated.
+     * If <code>rowHeights</code> has more elements than the number of
+     * rows, rowa are added to the gridbag to match
+     * the number of elements in <code>rowHeights</code>.
+     *
+     * @serial
+     * @see #getLayoutDimensions()
+     */
+  public int rowHeights[];
+
+    /**
+     * This field holds the overrides to the column weights.
+     * If this field is non-<code>null</code> the values are
+     * applied to the gridbag after all of the columns
+     * weights have been calculated.
+     * If <code>columnWeights[i]</code> &gt; weight for column i, then
+     * column i is assigned the weight in <code>columnWeights[i]</code>.
+     * If <code>columnWeights</code> has more elements than the number
+     * of columns, the excess elements are ignored - they do
+     * not cause more columns to be created.
+     *
+     * @serial
+     */
+  public double columnWeights[];
+
+    /**
+     * This field holds the overrides to the row weights.
+     * If this field is non-</code>null</code> the values are
+     * applied to the gridbag after all of the rows
+     * weights have been calculated.
+     * If <code>rowWeights[i]</code> &gt; weight for row i, then
+     * row i is assigned the weight in <code>rowWeights[i]</code>.
+     * If <code>rowWeights</code> has more elements than the number
+     * of rows, the excess elements are ignored - they do
+     * not cause more rows to be created.
+     *
+     * @serial
+     */
+  public double rowWeights[];
+
+  /**
+   * Creates a grid bag layout manager.
+   */
+    public GridBagLayout (boolean fallbackOn, int specGrid, int gridCols, int gridRows) {
+	FALLBACK = fallbackOn;
+	SPEC_GRID = specGrid;
+	this.gridCols = gridCols; //HS
+	this.gridRows = gridRows; //HS
+	comptable = new Hashtable<Component,GridBagConstraints>();
+	defaultConstraints = new GridBagConstraints();
+  }
+
+  /**
+   * Sets the constraints for the specified component in this layout.
+   * @param       comp the component to be modified
+   * @param       constraints the constraints to be applied
+   */
+  public void setConstraints(Component comp, GridBagConstraints constraints) 
+  /* modifies fields GridBagLayout.comptable, GridBagLayout.comps
+     ensures comptable.containsKey(constraints) &&
+     comptable.get(comp).equals(constraints) */ {
+      //comptable.put(comp, (GridBagConstraints)constraints.clone()); //HS
+      comptable.put(comp, (GridBagConstraints)constraints/*.clone2()*/); //HS
+  }
+
+  /**
+   * Gets the constraints for the specified component.  A copy of
+   * the actual <code>GridBagConstraints</code> object is returned.
+   * @param       comp the component to be queried
+   * @return      the constraint for the specified component in this
+   *                  grid bag layout; a copy of the actual constraint
+   *                  object is returned
+   */
+    /*pure*/ public GridBagConstraints getConstraints(Component comp) 
+	     /* ensures (comptable.get(comp) == null && result == this.defaultConstraints) ||
+		(comptable.get(comp) != null && result == comptable.get(comp)) */ {
+    GridBagConstraints constraints = comptable.get(comp);
+    if (constraints == null) {
+      setConstraints(comp, defaultConstraints);
+      constraints = comptable.get(comp);
+    }
+    //return (GridBagConstraints)constraints.clone(); //HS
+    return (GridBagConstraints)constraints.clone2(); //HS
+  }
+
+  /**
+   * Retrieves the constraints for the specified component.
+   * The return value is not a copy, but is the actual
+   * <code>GridBagConstraints</code> object used by the layout mechanism.
+   * <p>
+   * If <code>comp</code> is not in the <code>GridBagLayout</code>,
+   * a set of default <code>GridBagConstraints</code> are returned.
+   * A <code>comp</code> value of <code>null</code> is invalid
+   * and returns <code>null</code>.
+   *
+   * @param       comp the component to be queried
+   * @return      the contraints for the specified component
+   */
+    /*prue*/ protected GridBagConstraints lookupConstraints(Component comp)
+	     /* ensures (comptable.get(comp) == null && result == this.defaultConstraints) ||
+		(comptable.get(comp) != null && result == comptable.get(comp)) */ {
+    GridBagConstraints constraints = comptable.get(comp);
+    if (constraints == null) {
+      setConstraints(comp, defaultConstraints);
+      constraints = comptable.get(comp);
+    }
+    return constraints;
+  }
+
+  /**
+   * Removes the constraints for the specified component in this layout
+   * @param       comp the component to be modified
+   */
+  private void removeConstraints(Component comp)
+  /* modifies fields GridBagLayout.comptable
+     ensures comptable.equals(old.comptable.minusKey(comp)) */ {
+    comptable.remove(comp);
+  }
+
+    /**
+     * Determines the origin of the layout area, in the graphics coordinate 
+     * space of the target container.  This value represents the pixel 
+     * coordinates of the top-left corner of the layout area regardless of
+     * the <code>ComponentOrientation</code> value of the container.  This 
+     * is distinct from the grid origin given by the cell coordinates (0,0).
+     * Most applications do not call this method directly.
+     * @return     the graphics origin of the cell in the top-left
+     *             corner of the layout grid
+     * @see        java.awt.ComponentOrientation
+     * @since      JDK1.1
+     */
+    /*pure*/ public Point getLayoutOrigin ()
+  /*ensures result != null && 
+      ((this.layoutInfo == null || 
+	this.layoutInfo.startx == null || 
+	this.layoutInfo.starty == null) && 
+       result.x == 0 && result.y == 0) ||
+      (this.layoutInfo != null && 
+       this.layoutInfo.startx != null &&
+       this.layoutInfo.starty != null &&
+       result.x == this.layoutInfo.startx && 
+       result.y == this.layoutInfo.starty) */ {
+      if (FALLBACK)
+	  System.out.println(1/0);
+    Point origin = new Point(0,0);
+    if (layoutInfo != null) {
+      origin.x = layoutInfo.startx;
+      origin.y = layoutInfo.starty;
+    }
+    return origin;
+  }
+
+    /**
+     * Determines column widths and row heights for the layout grid.
+     * <p>
+     * Most applications do not call this method directly.
+     * @return     an array of two arrays, containing the widths
+     *                       of the layout columns and
+     *                       the heights of the layout rows
+     * @since      JDK1.1
+     */
+    public int [][] getLayoutDimensions () {
+    if (layoutInfo == null)
+	return new int[2][0];
+
+    int dim[][] = new int [2][];
+    dim[0] = new int[layoutInfo.width];
+    dim[1] = new int[layoutInfo.height];
+
+    System.arraycopy(layoutInfo.minWidth, 0, dim[0], 0, layoutInfo.width);
+    System.arraycopy(layoutInfo.minHeight, 0, dim[1], 0, layoutInfo.height);
+
+    return dim;
+    } 
+
+    /**
+     * Determines the weights of the layout grid's columns and rows.
+     * Weights are used to calculate how much a given column or row
+     * stretches beyond its preferred size, if the layout has extra
+     * room to fill.
+     * <p>
+     * Most applications do not call this method directly.
+     * @return      an array of two arrays, representing the
+     *                    horizontal weights of the layout columns
+     *                    and the vertical weights of the layout rows
+     * @since       JDK1.1
+     */
+  public double [][] getLayoutWeights () {
+    if (layoutInfo == null)
+      return new double[2][0];
+
+    double weights[][] = new double [2][];
+    weights[0] = new double[layoutInfo.width];
+    weights[1] = new double[layoutInfo.height];
+
+    System.arraycopy(layoutInfo.weightX, 0, weights[0], 0, layoutInfo.width);
+    System.arraycopy(layoutInfo.weightY, 0, weights[1], 0, layoutInfo.height);
+
+    return weights;
+  }
+
+    /**
+     * Determines which cell in the layout grid contains the point
+     * specified by <code>(x,&nbsp;y)</code>. Each cell is identified
+     * by its column index (ranging from 0 to the number of columns
+     * minus 1) and its row index (ranging from 0 to the number of
+     * rows minus 1).
+     * <p>
+     * If the <code>(x,&nbsp;y)</code> point lies
+     * outside the grid, the following rules are used.
+     * The column index is returned as zero if <code>x</code> lies to the
+     * left of the layout for a left-to-right container or to the right of
+     * the layout for a right-to-left container.  The column index is returned
+     * as the number of columns if <code>x</code> lies
+     * to the right of the layout in a left-to-right container or to the left
+     * in a right-to-left container.
+     * The row index is returned as zero if <code>y</code> lies above the 
+     * layout, and as the number of rows if <code>y</code> lies
+     * below the layout.  The orientation of a container is determined by its
+     * <code>ComponentOrientation</code> property.
+     * @param      x    the <i>x</i> coordinate of a point
+     * @param      y    the <i>y</i> coordinate of a point
+     * @return     an ordered pair of indexes that indicate which cell
+     *             in the layout grid contains the point
+     *             (<i>x</i>,&nbsp;<i>y</i>).
+     * @see        java.awt.ComponentOrientation
+     * @since      JDK1.1
+     */
+
+    /*
+    spec public boolean coversPoint(Point resultp, Integer x, Integer y) {
+	 return some pbnjx.swing.PBJButton c : this.comps.values() |
+	     (this.comps.get(resultp) == c  &&
+	      x >= c.xp() && 
+	      x <= c.xp() + c.wp() && 
+	      y >= c.yp() &&
+	      y <= c.yp() + c.hp());
+    }
+    */
+
+    /*pure*/ public Point location(int x, int y) 
+    /*ensures 
+	(this.layoutInfo == null && result.x == 0 && result.y == 0) ||
+	(this.layoutInfo != null && 
+	 this.comps.containsKey(result) && 
+	 coversPoint(result, x, y)) */ {
+
+	if (FALLBACK)
+	    System.out.println(1/0);
+
+    Point loc = new Point(0,0);
+    int i, d;
+
+    if (layoutInfo == null)
+      return loc;
+
+    d = layoutInfo.startx;
+    if (!rightToLeft) {
+        for (i=0; i<layoutInfo.width; i++) {
+	    d += layoutInfo.minWidth[i];
+	    //d += layoutInfo.minWidth.get(i);
+	    if (d > x)
+		break;
+	}
+    } else {
+        for (i=layoutInfo.width-1; i>=0; i--) {
+	    if (d > x)
+		break;
+	    d += layoutInfo.minWidth[i];
+	    //d += layoutInfo.minWidth.get(i);
+	}
+	i++;
+    }
+    loc.x = i;
+
+    d = layoutInfo.starty;
+    for (i=0; i<layoutInfo.height; i++) {
+	d += layoutInfo.minHeight[i];
+	//d += layoutInfo.minHeight.get(i);
+      if (d > y)
+	break;
+    }
+    loc.y = i;
+
+    return loc;
+  }
+
+  /**
+   * Has no effect, since this layout manager does not use a per-component string.
+   */
+  public void addLayoutComponent(String name, Component comp) {
+  }
+
+    /**
+     * Adds the specified component to the layout, using the specified
+     * <code>constraints</code> object.  Note that constraints
+     * are mutable and are, therefore, cloned when cached.
+     *
+     * @param      comp         the component to be added
+     * @param      constraints  an object that determines how
+     *                          the component is added to the layout
+     * @exception IllegalArgumentException if <code>constraints</code>
+     *		  is not a <code>GridBagConstraint</code>
+     */
+    // ensured by callee
+    public void addLayoutComponent(Component comp, Object constraints) {
+      if (constraints instanceof GridBagConstraints) {
+	    setConstraints(comp, (GridBagConstraints)constraints);
+	} else if (constraints != null) {
+	    throw new IllegalArgumentException("cannot add to layout: constraints must be a GridBagConstraint");
+	}
+    }
+
+  /**
+     * Removes the specified component from this layout.
+     * <p>
+     * Most applications do not call this method directly.
+     * @param    comp   the component to be removed.
+     * @see      java.awt.Container#remove(java.awt.Component)
+     * @see      java.awt.Container#removeAll()
+   */
+    // ensured by callee
+  public void removeLayoutComponent(Component comp) {
+    removeConstraints(comp);
+  }
+
+  /**
+    * Determines the preferred size of the <code>parent</code>
+    * container using this grid bag layout.
+    * <p>
+    * Most applications do not call this method directly.
+    *
+    * @param     parent   the container in which to do the layout
+    * @see       java.awt.Container#getPreferredSize
+    * @return the preferred size of the <code>parent</code>
+    *  container
+    */
+    // ensured by callees
+  public Dimension preferredLayoutSize(Container parent) {
+    GridBagLayoutInfo info = getLayoutInfo(parent, PREFERREDSIZE);
+    return getMinSize(parent, info);
+  }
+
+  /**
+    * Determines the minimum size of the <code>parent</code> container
+    * using this grid bag layout.
+    * <p>
+    * Most applications do not call this method directly.
+    * @param     parent   the container in which to do the layout
+    * @see       java.awt.Container#doLayout
+    * @return the minimum size of the <code>parent</code> container
+    */
+    // ensured by callees
+  public Dimension minimumLayoutSize(Container parent) {
+    GridBagLayoutInfo info = getLayoutInfo(parent, MINSIZE);
+    return getMinSize(parent, info);
+  }
+
+    /**
+     * Returns the maximum dimensions for this layout given the components
+     * in the specified target container.
+     * @param target the container which needs to be laid out
+     * @see Container
+     * @see #minimumLayoutSize(Container)
+     * @see #preferredLayoutSize(Container)
+     * @return the maximum dimensions for this layout
+     */
+    public Dimension maximumLayoutSize(Container target)
+    /* ensures result != null && 
+	result.getHeight() == Integer.MAX_VALUE && 
+	result.getWidth() == Integer.MAX_VALUE && 
+    */ {
+	return new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Returns the alignment along the x axis.  This specifies how
+     * the component would like to be aligned relative to other
+     * components.  The value should be a number between 0 and 1
+     * where 0 represents alignment along the origin, 1 is aligned
+     * the furthest away from the origin, 0.5 is centered, etc.
+     * <p>
+     * @return the value <code>0.5f</code> to indicate centered
+     */
+    public float getLayoutAlignmentX(Container parent) {
+	return 0.5f;
+    }
+
+    /**
+     * Returns the alignment along the y axis.  This specifies how
+     * the component would like to be aligned relative to other
+     * components.  The value should be a number between 0 and 1
+     * where 0 represents alignment along the origin, 1 is aligned
+     * the furthest away from the origin, 0.5 is centered, etc.
+     * <p>
+     * @return the value <code>0.5f</code> to indicate centered
+     */
+    public float getLayoutAlignmentY(Container parent) {
+	return 0.5f;
+    }
+
+    /**
+     * Invalidates the layout, indicating that if the layout manager
+     * has cached information it should be discarded.
+     */
+    public void invalidateLayout(Container target) {
+    }
+
+  /**
+   * Lays out the specified container using this grid bag layout.
+   * This method reshapes components in the specified container in
+   * order to satisfy the contraints of this <code>GridBagLayout</code>
+   * object.
+   * <p>
+   * Most applications do not call this method directly.
+   * @param parent the container in which to do the layout
+   * @see java.awt.Container
+   * @see java.awt.Container#doLayout
+   */
+    // ensured by callee
+  public void layoutContainer(Container parent) {
+    arrangeGrid(parent);
+  }
+
+  /**
+     * Returns a string representation of this grid bag layout's values.
+     * @return     a string representation of this grid bag layout.
+   */
+  public String toString() {
+    return getClass().getName();
+  }
+
+  /**
+   * Print the layout information.  Useful for debugging.
+   */
+
+  /* DEBUG */
+   
+     protected void DumpLayoutInfo(GridBagLayoutInfo s) {
+       int x;
+       System.out.println("minWidth: " + s.minWidth + " minHeight: " + s.minHeight); //HS
+       System.out.println("Col\tWidth\tWeight");
+       for (x=0; x<s.width; x++) {
+         System.out.println(x + "\t" +
+			    s.minWidth[x] + "\t" +
+   			 s.weightX[x]);
+       }
+       System.out.println("Row\tHeight\tWeight");
+       for (x=0; x<s.height; x++) {
+         System.out.println(x + "\t" +
+			    s.minHeight[x] + "\t" +
+   			 s.weightY[x]);
+       }
+
+       for (int compindex = 0 ; compindex < components.length ; compindex++) {
+	   PBJButton comp = (PBJButton) components[compindex];
+	   if (!comp.isVisible())
+	       continue;
+	   GridBagConstraints constraints = lookupConstraints(comp);
+	   System.out.print("x="+comp.getX() / SPEC_GRID+ " y=" + comp.getY() / SPEC_GRID + " w=" + comp.getWidth() / SPEC_GRID + " h=" + comp.getHeight() / SPEC_GRID);
+	   System.out.print(" xp=" + comp.xp() + " yp=" + comp.yp() + " wp=" + comp.wp() + " hp=" + comp.hp());
+	   //System.out.print(" tx="+constraints.tempX + " ty=" + constraints.tempY + " tw=" + constraints.tempWidth + " th=" + constraints.tempHeight);
+	   System.out.print(/*" gx="+constraints.gridx + " gy=" + constraints.gridy + */" gw=" +  comp.gw() + " gh=" + comp.gh());
+	   System.out.print(" mw="+constraints.minWidth + " mh="+constraints.minHeight);
+	   System.out.print(" ewp="+comp.ewp() + " ey="+comp.ey() + " ew="+comp.ew() + " eh="+comp.eh()); 
+	   System.out.print(" gx="+comp.gx() + " gy="+comp.gy()); 
+	   System.out.println(" iright="+comp.iright() + " itop="+ comp.itop()); 
+       }
+       System.out.println("parentGW: " + parentGridW + " parentGH: " + parentGridH + " parentw: " + this.parentW + " parenth: " + this.parentH);
+     }
+   
+
+  /**
+   * Print the layout constraints.  Useful for debugging.
+   */
+
+  /* DEBUG */
+   
+     protected void DumpConstraints(GridBagConstraints constraints) {
+       System.out.println(
+   		       "wt " +
+   		       constraints.weightx +
+   		       " " +
+   		       constraints.weighty +
+   		       ", " +
+   
+   		       "box " +
+   		       constraints.gridx +
+   		       " " +
+   		       constraints.gridy +
+   		       " " +
+   		       constraints.gridwidth +
+   		       " " +
+   		       constraints.gridheight +
+   		       ", " +
+   
+   		       "min " +
+   		       constraints.minWidth +
+   		       " " +
+   		       constraints.minHeight +
+   		       ", " +
+   
+   		       "pad " +
+   		       constraints.insets.bottom +
+   		       " " +
+   		       constraints.insets.left +
+   		       " " +
+   		       constraints.insets.right +
+   		       " " +
+   		       constraints.insets.top +
+   		       " " +
+   		       constraints.ipadx +
+   		       " " +
+   		       constraints.ipady);
+     }
+
+    /**
+     * Fills in an instance of <code>GridBagLayoutInfo</code> for the
+     * current set of managed children. This requires three passes through the
+     * set of children:
+     *
+     * <ol>
+     * <li>Figure out the dimensions of the layout grid.
+     * <li>Determine which cells the components occupy.
+     * <li>Distribute the weights and min sizes amoung the rows/columns.
+     * </ol>
+     *
+     * This also caches the minsizes for all the children when they are
+     * first encountered (so subsequent loops don't need to ask again).
+     * <p>
+     * This method should only be used internally by
+     * <code>GridBagLayout</code>.
+     *
+     * @param parent  the layout container 
+     * @param sizeflag either <code>PREFERREDSIZE</code> or
+     *   <code>MINSIZE</code>
+     * @return the <code>GridBagLayoutInfo</code> for the set of children
+     * @since 1.4
+     */
+
+    // ensured by callee
+    protected GridBagLayoutInfo getLayoutInfo(Container parent, int sizeflag) {
+        return GetLayoutInfo(parent, sizeflag);
+    }
+
+    /**
+     * This method is obsolete and supplied for backwards
+     * compatability only; new code should call {@link
+     * #getLayoutInfo(java.awt.Container, int) getLayoutInfo} instead.
+     * This method is the same as <code>getLayoutInfo</code>;
+     * refer to <code>getLayoutInfo</code> for details on parameters
+     * and return value.
+     */
+    
+  protected GridBagLayoutInfo GetLayoutInfo(Container parent, int sizeflag)
+  /*modifies fields GridBagLayoutInfo.width, GridBagLayoutInfo.height, 
+      GridBagLayoutInfo.minWidth, GridBagLayoutInfo.minHeight 
+       ensures result != null && 
+      result.width == this.gridCols && 
+      result.height == this.gridRows &&
+      result.minWidth.size() == this.gridCols &&
+      result.minHeigth.size() == this.gridRows &&
+      (for int i : result.minWidth.indices() | 
+          some PBJButton b1 | 
+	    (result.minWidth.get(i) == comptable.get(b1).minWidth/comptable.get(b1).gridwidth &&
+             (no PBJButton b2 | b1 != b2 && 
+	      comptable.get(b1).minWidth/comptable.get(b1).gridwidth >  result.minWidth.get(i)))) &&
+      (for int i : result.minHeight.indices() | 
+          some PBJButton b1 | 
+	    (result.minHeight.get(i) == comptable.get(b1).minHeight/comptable.get(b1).gridheight &&
+             (no PBJButton b2 | b1 != b2 && 
+	      comptable.get(b1).minHeight/comptable.get(b1).gridheight >  result.minHeight.get(i)))))
+
+  */
+    {
+      //synchronized (parent.getTreeLock()) { //HS
+       GridBagLayoutInfo r = new GridBagLayoutInfo(gridCols, gridRows);
+
+       if (false && FALLBACK) {
+	   this.components = parent.getComponents(); //HS
+	   r.width = this.gridCols;
+	   r.height = this.gridRows;
+	   this.parentW = parent.getWidth() / SPEC_GRID;
+	   this.parentH = parent.getHeight() / SPEC_GRID;
+	   this.parentGridW = this.parentW / r.width;
+	   this.parentGridH = this.parentH / r.height;
+	   System.out.println("hi: " + this.parentGridW);
+	   Component comp;
+	   GridBagConstraints constraints;
+	   Dimension d;
+	   for (int compindex = 0 ; compindex < components.length ; compindex++) {
+	       comp = components[compindex];
+	       if (!comp.isVisible())
+		   continue;
+	       d = comp.getMinimumSize();
+	       constraints = lookupConstraints(comp);
+	       constraints.minWidth = d.width;
+	       constraints.minHeight = d.height;
+	       System.out.println("---> " + constraints.minWidth + " " + constraints.minHeight);
+	       PBJButton b = (PBJButton) comp;
+	       
+	       int cw = constraints.minWidth/constraints.gridwidth;
+	       int ch = constraints.minHeight/constraints.gridheight + constraints.insets.top + constraints.ipady;
+	       
+	       
+	       if (r.minWidth[constraints.gridx] < cw)
+		   r.minWidth[constraints.gridx] = cw;
+	       if (r.minHeight[constraints.gridy] < ch)
+		   r.minHeight[constraints.gridy] = ch;
+	       
+	       b.xpSet(b.getX()/SPEC_GRID);
+	       b.ypSet(b.getY()/SPEC_GRID);
+	       b.wpSet(b.getWidth()/SPEC_GRID);
+	       b.hpSet(b.getHeight()/SPEC_GRID);
+	       b.gw(constraints.gridwidth);
+	       b.gh(constraints.gridheight);
+	       //b.ew(constraints.gridwidth*r.minWidth.get(constraints.gridx)/SPEC_GRID);
+	       b.ew(constraints.gridwidth*constraints.minWidth/SPEC_GRID);
+	       //b.eh(constraints.gridheight*r.minHeight.get(constraints.gridy)/SPEC_GRID);
+	       b.eh(constraints.gridheight*constraints.minHeight/SPEC_GRID);
+	       int totalMinHs = 0;
+	       for (int idx=0; idx < constraints.gridy; idx++)
+		   totalMinHs += r.minHeight[idx];
+	       //totalMinHs += r.minHeight.get(idx);
+	       b.ey(constraints.gridheight*totalMinHs/SPEC_GRID);
+	       b.ewp(parent.getWidth() / SPEC_GRID / r.width * constraints.gridwidth);
+	       b.gx(constraints.gridx);
+	       b.gy(constraints.gridy);
+	       b.iright(constraints.insets.right/SPEC_GRID);
+	       b.itop(constraints.insets.top/SPEC_GRID);
+	       b.centerAnchor(constraints.anchor == GridBagConstraints.PAGE_END ? 1 : 0);
+	       
+	   }
+	   
+       } else {
+    Component comp;
+    GridBagConstraints constraints;
+    Dimension d;
+    //Component components[] = parent.getComponents(); //HS
+    this.components = parent.getComponents(); //HS
+    int compindex, i, j, k, px, py, pixels_diff, nextSize;
+    int curX, curY, curWidth, curHeight, curRow, curCol;
+    double weight_diff, weight, start, size;
+    int xMax[], yMax[];
+
+    /*
+     * Pass #1
+     *
+     * Figure out the dimensions of the layout grid (use a value of 1 for
+     * zero or negative widths and heights).
+     */
+
+    r.width = r.height = 0;
+    curRow = curCol = -1;
+    xMax = new int[MAXGRIDSIZE];
+    yMax = new int[MAXGRIDSIZE];
+
+    for (compindex = 0 ; compindex < components.length ; compindex++) {
+      comp = components[compindex];
+      if (!comp.isVisible())
+	continue;
+      constraints = lookupConstraints(comp);
+      System.out.println("holo1 " + comp + " " + comp.getMinimumSize()); DumpConstraints(constraints);
+      curX = constraints.gridx;
+      curY = constraints.gridy;
+      curWidth = constraints.gridwidth;
+      if (curWidth <= 0)
+	curWidth = 1;
+      curHeight = constraints.gridheight;
+      if (curHeight <= 0)
+	curHeight = 1;
+
+      /* If x or y is negative, then use relative positioning: */
+      if (curX < 0 && curY < 0) {
+	if (curRow >= 0)
+	  curY = curRow;
+	else if (curCol >= 0)
+	  curX = curCol;
+	else
+	  curY = 0;
+      }
+      if (curX < 0) {
+	px = 0;
+        for (i = curY; i < (curY + curHeight); i++) { 
+          px = Math.max(px, xMax[i]); 
+        }
+
+	curX = px - curX - 1;
+	if(curX < 0)
+	  curX = 0;
+      }
+      else if (curY < 0) {
+	py = 0;
+	for (i = curX; i < (curX + curWidth); i++) {
+        py = Math.max(py, yMax[i]);
+    }
+
+	curY = py - curY - 1;
+	if(curY < 0)
+	  curY = 0;
+      }
+
+      /* Adjust the grid width and height */
+      for (px = curX + curWidth; r.width < px; r.width++); 
+      for (py = curY + curHeight; r.height < py; r.height++);
+
+      /* Adjust xMax and yMax */
+      for (i = curX; i < (curX + curWidth); i++) { 
+          yMax[i] = py; 
+      }
+      for (i = curY; i < (curY + curHeight); i++) {
+          xMax[i] = px;
+      }
+
+      /* Cache the current slave's size. */
+      if (sizeflag == PREFERREDSIZE)
+	d = comp.getPreferredSize();
+      else
+	d = comp.getMinimumSize();
+      constraints.minWidth = d.width;
+      constraints.minHeight = d.height;
+
+      /* Zero width and height must mean that this is the last item (or
+       * else something is wrong). */
+      if (constraints.gridheight == 0 && constraints.gridwidth == 0)
+	curRow = curCol = -1;
+
+      /* Zero width starts a new row */
+      if (constraints.gridheight == 0 && curRow < 0)
+	curCol = curX + curWidth;
+
+      /* Zero height starts a new column */
+      else if (constraints.gridwidth == 0 && curCol < 0)
+	curRow = curY + curHeight;
+    }
+
+    /*
+     * Apply minimum row/column dimensions
+     */
+    if (columnWidths != null && r.width < columnWidths.length)
+        r.width = columnWidths.length;
+    if (rowHeights != null && r.height < rowHeights.length)
+        r.height = rowHeights.length;
+
+
+    /*
+     * Pass #2
+     *
+     * Negative values for gridX are filled in with the current x value.
+     * Negative values for gridY are filled in with the current y value.
+     * Negative or zero values for gridWidth and gridHeight end the current
+     *  row or column, respectively.
+     */
+
+    curRow = curCol = -1;
+    xMax = new int[MAXGRIDSIZE];
+    yMax = new int[MAXGRIDSIZE];
+
+    for (compindex = 0 ; compindex < components.length ; compindex++) {
+      comp = components[compindex];
+      if (!comp.isVisible())
+	continue;
+      constraints = lookupConstraints(comp);
+      System.out.println("holo2"); DumpConstraints(constraints);
+      curX = constraints.gridx;
+      curY = constraints.gridy;
+      curWidth = constraints.gridwidth;
+      curHeight = constraints.gridheight;
+
+      /* If x or y is negative, then use relative positioning: */
+      if (curX < 0 && curY < 0) {
+	if(curRow >= 0)
+	  curY = curRow;
+	else if(curCol >= 0)
+	  curX = curCol;
+	else
+	  curY = 0;
+      }
+
+      if (curX < 0) {
+	if (curHeight <= 0) {
+	  curHeight += r.height - curY;
+	  if (curHeight < 1)
+	    curHeight = 1;
+	}
+
+	px = 0;
+	for (i = curY; i < (curY + curHeight); i++)
+	  px = Math.max(px, xMax[i]);
+
+	curX = px - curX - 1;
+	if(curX < 0)
+	  curX = 0;
+      }
+      else if (curY < 0) {
+	if (curWidth <= 0) {
+	  curWidth += r.width - curX;
+	  if (curWidth < 1)
+	    curWidth = 1;
+	}
+
+	py = 0;
+	for (i = curX; i < (curX + curWidth); i++)
+	  py = Math.max(py, yMax[i]);
+
+	curY = py - curY - 1;
+	if(curY < 0)
+	  curY = 0;
+      }
+
+      if (curWidth <= 0) {
+	curWidth += r.width - curX;
+	if (curWidth < 1)
+	  curWidth = 1;
+      }
+
+      if (curHeight <= 0) {
+	curHeight += r.height - curY;
+	if (curHeight < 1)
+	  curHeight = 1;
+      }
+
+      px = curX + curWidth;
+      py = curY + curHeight;
+
+      for (i = curX; i < (curX + curWidth); i++) { yMax[i] = py; }
+      for (i = curY; i < (curY + curHeight); i++) { xMax[i] = px; }
+
+      /* Make negative sizes start a new row/column */
+      if (constraints.gridheight == 0 && constraints.gridwidth == 0)
+	curRow = curCol = -1;
+      if (constraints.gridheight == 0 && curRow < 0)
+	curCol = curX + curWidth;
+      else if (constraints.gridwidth == 0 && curCol < 0)
+        curRow = curY + curHeight;
+
+      /* Assign the new values to the gridbag slave */
+      constraints.tempX = curX;
+      constraints.tempY = curY;
+      constraints.tempWidth = curWidth;
+      constraints.tempHeight = curHeight;
+    }
+
+    /*
+     * Apply minimum row/column dimensions and weights
+     */
+    if (columnWidths != null)
+      System.arraycopy(columnWidths, 0, r.minWidth, 0, columnWidths.length);
+    if (rowHeights != null)
+      System.arraycopy(rowHeights, 0, r.minHeight, 0, rowHeights.length);
+    if (columnWeights != null)
+      System.arraycopy(columnWeights, 0, r.weightX, 0,  Math.min(r.weightX.length, columnWeights.length));
+    if (rowWeights != null)
+      System.arraycopy(rowWeights, 0, r.weightY, 0,  Math.min(r.weightY.length, rowWeights.length));
+
+
+
+    /*
+     * Pass #3
+     *
+     * Distribute the minimun widths and weights:
+     */
+
+    nextSize = Integer.MAX_VALUE;
+
+    for (i = 1;
+	 i != Integer.MAX_VALUE;
+	 i = nextSize, nextSize = Integer.MAX_VALUE) {
+      for (compindex = 0 ; compindex < components.length ; compindex++) {
+	comp = components[compindex];
+	if (!comp.isVisible())
+	  continue;
+	constraints = lookupConstraints(comp);
+	System.out.println("holo3"); DumpConstraints(constraints);
+	if (constraints.tempWidth == i) {
+	  px = constraints.tempX + constraints.tempWidth; /* right column */
+
+	  /*
+	   * Figure out if we should use this slave\'s weight.  If the weight
+	   * is less than the total weight spanned by the width of the cell,
+	   * then discard the weight.  Otherwise split the difference
+	   * according to the existing weights.
+	   */
+
+	  weight_diff = constraints.weightx;
+	  for (k = constraints.tempX; k < px; k++)
+	    weight_diff -= r.weightX[k];
+	  if (weight_diff > 0.0) {
+	    weight = 0.0;
+	    for (k = constraints.tempX; k < px; k++)
+	      weight += r.weightX[k];
+	    for (k = constraints.tempX; weight > 0.0 && k < px; k++) {
+	      double wt = r.weightX[k];
+	      double dx = (wt * weight_diff) / weight;
+	      r.weightX[k] += dx;
+	      weight_diff -= dx;
+	      weight -= wt;
+	    }
+	    /* Assign the remainder to the rightmost cell */
+	    r.weightX[px-1] += weight_diff;
+	  }
+
+	  /*
+	   * Calculate the minWidth array values.
+	   * First, figure out how wide the current slave needs to be.
+	   * Then, see if it will fit within the current minWidth values.
+	   * If it will not fit, add the difference according to the
+	   * weightX array.
+	   */
+
+	  pixels_diff =
+	    constraints.minWidth + constraints.ipadx +
+	    constraints.insets.left + constraints.insets.right;
+
+	  for (k = constraints.tempX; k < px; k++)
+	      pixels_diff -= r.minWidth[k];
+	  //pixels_diff -= r.minWidth.get(k);
+	  if (pixels_diff > 0) {
+	    weight = 0.0;
+	    for (k = constraints.tempX; k < px; k++)
+	      weight += r.weightX[k];
+	    for (k = constraints.tempX; weight > 0.0 && k < px; k++) {
+	      double wt = r.weightX[k];
+	      int dx = (int)((wt * ((double)pixels_diff)) / weight);
+	      r.minWidth[k] += dx;
+	      //r.minWidth.set(k, r.minWidth.get(k) + dx);
+	      pixels_diff -= dx;
+	      weight -= wt;
+	    }
+	    /* Any leftovers go into the rightmost cell */
+	    r.minWidth[px-1] += pixels_diff;
+	    //r.minWidth.set(px-1,r.minWidth.get(px-1) + pixels_diff);
+	  }
+	}
+	else if (constraints.tempWidth > i && constraints.tempWidth < nextSize)
+	  nextSize = constraints.tempWidth;
+
+
+	if (constraints.tempHeight == i) {
+	  py = constraints.tempY + constraints.tempHeight; /* bottom row */
+
+	  /*
+	   * Figure out if we should use this slave's weight.  If the weight
+	   * is less than the total weight spanned by the height of the cell,
+	   * then discard the weight.  Otherwise split it the difference
+	   * according to the existing weights.
+	   */
+
+	  weight_diff = constraints.weighty;
+	  for (k = constraints.tempY; k < py; k++)
+	    weight_diff -= r.weightY[k];
+	  if (weight_diff > 0.0) {
+	    weight = 0.0;
+	    for (k = constraints.tempY; k < py; k++)
+	      weight += r.weightY[k];
+	    for (k = constraints.tempY; weight > 0.0 && k < py; k++) {
+	      double wt = r.weightY[k];
+	      double dy = (wt * weight_diff) / weight;
+	      r.weightY[k] += dy;
+	      weight_diff -= dy;
+	      weight -= wt;
+	    }
+	    /* Assign the remainder to the bottom cell */
+	    r.weightY[py-1] += weight_diff;
+	  }
+
+	  /*
+	   * Calculate the minHeight array values.
+	   * First, figure out how tall the current slave needs to be.
+	   * Then, see if it will fit within the current minHeight values.
+	   * If it will not fit, add the difference according to the
+	   * weightY array.
+	   */
+
+	  pixels_diff =
+	    constraints.minHeight + constraints.ipady +
+	    constraints.insets.top + constraints.insets.bottom;
+	  for (k = constraints.tempY; k < py; k++)
+	      pixels_diff -= r.minHeight[k];
+	  //pixels_diff -= r.minHeight.get(k);
+	  if (pixels_diff > 0) {
+	    weight = 0.0;
+	    for (k = constraints.tempY; k < py; k++)
+	      weight += r.weightY[k];
+	    for (k = constraints.tempY; weight > 0.0 && k < py; k++) {
+	      double wt = r.weightY[k];
+	      int dy = (int)((wt * ((double)pixels_diff)) / weight);
+	      r.minHeight[k] += dy;
+	      //r.minHeight.set(k, r.minHeight.get(k) + dy);
+	      pixels_diff -= dy;
+	      weight -= wt;
+	    }
+	    /* Any leftovers go into the bottom cell */
+	    r.minHeight[py-1] += pixels_diff;
+	    //r.minHeight.set(py-1, r.minHeight.get(py-1) + pixels_diff);
+	  }
+	}
+	else if (constraints.tempHeight > i &&
+		 constraints.tempHeight < nextSize)
+	  nextSize = constraints.tempHeight;
+
+
+	//HS
+	PBJButton b = (PBJButton) comp;
+	b.xpSet(b.getX()/SPEC_GRID);
+	b.ypSet(b.getY()/SPEC_GRID);
+	b.wpSet(b.getWidth()/SPEC_GRID);
+	b.hpSet(b.getHeight()/SPEC_GRID);
+	b.gw(constraints.gridwidth);
+	b.gh(constraints.gridheight);
+	b.ew(constraints.gridwidth*r.minWidth[constraints.gridx]/SPEC_GRID);
+	b.eh(constraints.gridheight*r.minHeight[constraints.gridy]/SPEC_GRID);
+	int totalMinHs = 0;
+	for (int idx=0; idx < constraints.gridy; idx++)
+	    totalMinHs += r.minHeight[idx];
+	b.ey(constraints.gridheight*totalMinHs/SPEC_GRID);
+	b.ewp(parent.getWidth() / SPEC_GRID / r.width * constraints.gridwidth);
+	b.gx(constraints.gridx);
+	b.gy(constraints.gridy);
+	b.iright(constraints.insets.right/SPEC_GRID);
+	b.itop(constraints.insets.top/SPEC_GRID);
+	b.centerAnchor(constraints.anchor == GridBagConstraints.PAGE_END ? 1 : 0);
+	//HS END
+      }
+    }
+
+    this.parentW = parent.getWidth() / SPEC_GRID;
+    this.parentH = parent.getHeight() / SPEC_GRID;
+    this.parentGridW = this.parentW / r.width;
+    this.parentGridH = this.parentH / r.height;
+
+       }
+    return r;
+       // } //END synchronized //HS
+  }
+
+    /**
+     * Adjusts the x, y, width, and height fields to the correct
+     * values depending on the constraint geometry and pads.
+     * This method should only be used internally by
+     * <code>GridBagLayout</code>.
+     *
+     * @param constraints the constraints to be applied
+     * @param r the <code>Rectangle</code> to be adjusted
+     * @since 1.4
+     */
+    // ensured by callee
+    protected void adjustForGravity(GridBagConstraints constraints,
+        Rectangle r) {
+        AdjustForGravity(constraints, r);
+    }
+
+    /**
+     * This method is obsolete and supplied for backwards
+     * compatability only; new code should call {@link
+     * #adjustForGravity(java.awt.GridBagConstraints, java.awt.Rectangle)
+     * adjustForGravity} instead.
+     * This method is the same as <code>adjustForGravity</code>;
+     * refer to <code>adjustForGravity</code> for details
+     * on parameters.
+     */
+
+  protected void AdjustForGravity(GridBagConstraints constraints,
+				  Rectangle r) {
+    int diffx, diffy;
+
+    if (!rightToLeft) {
+	r.x += constraints.insets.left;
+    } else {
+	r.x -= r.width - constraints.insets.right;
+    }
+    r.width -= (constraints.insets.left + constraints.insets.right);
+    r.y += constraints.insets.top;
+    r.height -= (constraints.insets.top + constraints.insets.bottom);
+
+    diffx = 0;
+    if ((constraints.fill != GridBagConstraints.HORIZONTAL &&
+	 constraints.fill != GridBagConstraints.BOTH)
+	&& (r.width > (constraints.minWidth + constraints.ipadx))) {
+      diffx = r.width - (constraints.minWidth + constraints.ipadx);
+      r.width = constraints.minWidth + constraints.ipadx;
+    }
+
+    diffy = 0;
+    if ((constraints.fill != GridBagConstraints.VERTICAL &&
+	 constraints.fill != GridBagConstraints.BOTH)
+	&& (r.height > (constraints.minHeight + constraints.ipady))) {
+      diffy = r.height - (constraints.minHeight + constraints.ipady);
+      r.height = constraints.minHeight + constraints.ipady;
+    }
+
+    switch (constraints.anchor) {
+    case GridBagConstraints.CENTER:
+      r.x += diffx/2;
+      r.y += diffy/2;
+      break;
+    case GridBagConstraints.PAGE_START:
+    case GridBagConstraints.NORTH:
+      r.x += diffx/2;
+      break;
+    case GridBagConstraints.NORTHEAST:
+      r.x += diffx;
+      break;
+    case GridBagConstraints.EAST:
+      r.x += diffx;
+      r.y += diffy/2;
+      break;
+    case GridBagConstraints.SOUTHEAST:
+      r.x += diffx;
+      r.y += diffy;
+      break;
+    case GridBagConstraints.PAGE_END:
+    case GridBagConstraints.SOUTH:
+      r.x += diffx/2;
+      r.y += diffy;
+      break;
+    case GridBagConstraints.SOUTHWEST:
+      r.y += diffy;
+      break;
+    case GridBagConstraints.WEST:
+      r.y += diffy/2;
+      break;
+    case GridBagConstraints.NORTHWEST:
+      break;
+    case GridBagConstraints.LINE_START:
+      if (rightToLeft) {
+        r.x += diffx;
+      }
+      r.y += diffy/2;
+      break;
+    case GridBagConstraints.LINE_END:
+      if (!rightToLeft) {
+        r.x += diffx;
+      }
+      r.y += diffy/2;
+      break;
+    case GridBagConstraints.FIRST_LINE_START:
+      if (rightToLeft) {
+        r.x += diffx;
+      }	
+      break;
+    case GridBagConstraints.FIRST_LINE_END:
+      if (!rightToLeft) {
+        r.x += diffx;
+      }	
+      break;
+    case GridBagConstraints.LAST_LINE_START:
+      if (rightToLeft) {
+        r.x += diffx;
+      }
+      r.y += diffy;
+      break;
+    case GridBagConstraints.LAST_LINE_END:
+      if (!rightToLeft) {
+        r.x += diffx;
+      }
+      r.y += diffy;
+      break;
+    default:
+      throw new IllegalArgumentException("illegal anchor value");
+    }
+  }
+
+    /**
+     * Figures out the minimum size of the
+     * master based on the information from <code>getLayoutInfo</code>.
+     * This method should only be used internally by
+     * <code>GridBagLayout</code>.
+     *
+     * @param parent the layout container 
+     * @param info the layout info for this parent
+     * @return a <code>Dimension</code> object containing the
+     *   minimum size
+     * @since 1.4
+     */
+    // ensured by callee
+    protected Dimension getMinSize(Container parent, GridBagLayoutInfo info) {
+        return GetMinSize(parent, info);
+    }
+
+    /**
+     * This method is obsolete and supplied for backwards
+     * compatability only; new code should call {@link
+     * #getMinSize(java.awt.Container, GridBagLayoutInfo) getMinSize} instead.
+     * This method is the same as <code>getMinSize</code>;
+     * refer to <code>getMinSize</code> for details on parameters
+     * and return value.
+     */
+  protected Dimension GetMinSize(Container parent, GridBagLayoutInfo info)
+  /*ensures result != null && result.width == this.parentW
+    && result.height == this.parentH */ {
+      
+    Dimension d = new Dimension();
+    int i, t;
+    Insets insets = parent.getInsets();
+
+    t = 0;
+    for(i = 0; i < info.width; i++)
+	t += info.minWidth[i];
+    //t += info.minWidth.get(i);
+    d.width = t + insets.left + insets.right;
+
+    t = 0;
+    for(i = 0; i < info.height; i++)
+	t += info.minHeight[i];
+    //t += info.minHeight.get(i);
+    d.height = t + insets.top + insets.bottom;
+
+    return d;
+  }
+
+    protected Point GetMinSize2(Container parent, GridBagLayoutInfo info) {
+	Point d = new Point();
+	return GetMinSize2H(parent, info, d);
+    }
+
+    PBJSet<Point> unarySet(Point p) { PBJSet<Point> r = new PBJSet<Point>(); r.add(p); return r; }
+
+    protected Point GetMinSize2H(Container parent, GridBagLayoutInfo info, Point d)
+    /* modifies fields Point.x, Point.y
+	modifies objects unarySet(d)
+	ensures result != null && 
+	result.x == this.parentW &&
+	result.y == this.parentH {
+	//result.x == this.layoutInfo.minWidth.sum() &&
+	//result.y == this.layoutInfo.minHeight.sum()*/  {
+      
+	if (FALLBACK)
+	    System.out.println(1/0);
+    int i, t;
+    Insets insets = parent.getInsets();
+
+    t = 0;
+    for(i = 0; i < info.width; i++)
+	t += info.minWidth[i];
+    //t += info.minWidth.get(i);
+    d.x = t + insets.left + insets.right;
+
+    t = 0;
+    for(i = 0; i < info.height; i++)
+	t += info.minHeight[i];
+    //t += info.minHeight.get(i);
+    d.y = t + insets.top + insets.bottom;
+    return d;
+  }
+
+    transient boolean rightToLeft = false;
+
+    spec protected boolean boundsValid(PBJButton c1) {
+	return c1.xp() >= 0 && c1.yp() >= 0 && c1.wp() > 0 && c1.hp() > 0 &&
+	    c1.xp() + c1.wp() <= this.parentW &&
+	    c1.yp() + c1.hp() <= this.parentH &&
+	    c1.xp() == c1.gx() * this.parentGridW &&
+	    c1.wp() == c1.ewp() - c1.iright() &&
+	    c1.hp() == c1.eh() - c1.itop();
+    }
+
+    spec protected boolean positionValid(PBJButton c1) {
+	return (c1.centerAnchor() == 1 && c1.yp() + c1.hp() == this.parentH)
+	    || (c1.centerAnchor() == 0 && c1.yp() == c1.ey());
+    }
+
+    spec protected boolean noOverlaps(PBJButton c1, PBJButton c2) {
+	return (c2.xp() >= c1.xp() && c2.xp() >= c1.xp() + c1.wp()) ||
+	    (c2.xp() <= c1.xp() && c2.xp() + c2.wp() <= c1.xp()) ||
+	    (c2.yp() >= c1.yp() && c2.yp() >= c1.yp() + c1.hp()) ||
+	    (c2.yp() <= c1.yp() && c2.yp() + c2.hp() <= c1.yp());
+    }
+
+    spec protected boolean relPositionsValid(PBJButton c1, PBJButton c2) {
+	return (c1.gy() != c2.gy() || 
+		(c1.yp() == c2.yp() &&
+		 ((c2.gx() > c1.gx() && c2.xp() >= c1.xp() + c1.wp()) ||
+		  (c2.gx() < c1.gx() && c2.xp() + c2.wp() <= c1.xp())))) &&
+	    (c1.gy() == c2.gy() || 
+	     (c2.gy() > c1.gy() && c2.yp() >= c1.yp() + c1.hp()) ||
+	     (c2.gy() < c1.gy() && c2.yp() + c2.hp() <= c1.yp()));
+   }
+
+    spec protected boolean gridLayoutValid() { 
+	return all PBJButton c1 : buttons |
+	    (boundsValid(c1) &&
+	     positionValid(c1) &&
+	     all PBJButton c2 : buttons | 
+	       (c1 == c2  ||
+		(noOverlaps(c1,c2) &&
+		relPositionsValid(c1,c2))));
+    }
+
+    /**
+     * Lays out the grid.
+     * This method should only be used internally by
+     * <code>GridBagLayout</code>.
+     *
+     * @param parent the layout container
+     * @since 1.4
+     */
+    protected void arrangeGrid(Container parent) {
+	//System.out.println(comps);	   
+
+	//PBJInteger.setBounds(0,GridBagLayout.MAXGRIDSIZE);
+	PBJInteger.setBounds(0,Math.max(50,Math.max(this.parentW,this.parentH))); 	
+
+	if (FALLBACK) {
+	    //HS
+	    Dimension d;
+	    layoutInfo = getLayoutInfo(parent, PREFERREDSIZE);
+	    d = getMinSize(parent, layoutInfo);
+	    
+	    if (parent.getWidth() < d.width || parent.getHeight() < d.height) {
+		layoutInfo = getLayoutInfo(parent, MINSIZE);
+		d = getMinSize(parent, layoutInfo);
+	    }	
+	    //HS END	    
+
+	    //HS:
+	    Component[] tmpComps = parent.getComponents(); //HS
+	    this.buttons = new PBJButton[tmpComps.length];
+	    for (int i=0;i<tmpComps.length;i++) {
+		this.buttons[i] = (PBJButton) tmpComps[i];
+	    }
+
+	    System.out.println("Before:");
+	    DumpLayoutInfo(layoutInfo);
+	    ArrangeGridEnsured();
+	    System.out.println("after:");
+	    DumpLayoutInfo(layoutInfo);
+	    System.out.println(d);
+	} else
+	    ArrangeGrid(parent);
+	//System.out.println(getLayoutOrigin());
+	//System.out.println(location(100,5));
+	//System.out.println(getLayoutDimensions());
+	//System.out.println(GetMinSize2(parent,layoutInfo));
+
+    }
+
+    protected void ArrangeGridEnsured() 
+	modifies fields PBJButton.xp, PBJButton.yp, PBJButton.wp, PBJButton.hp
+	ensures gridLayoutValid() 
+    {
+
+	int z = FALLBACK ? 1/0 : 0;
+	//ArrangeGrid(glbParent);
+    }
+    /**
+     * This method is obsolete and supplied for backwards
+     * compatability only; new code should call {@link
+     * #arrangeGrid(Container) arrangeGrid} instead.
+     * This method is the same as <code>arrangeGrid</code>;
+     * refer to <code>arrangeGrid</code> for details on the
+     * parameter.
+     */
+    protected void ArrangeGrid(Container parent) {
+    Component comp;
+    int compindex;
+    GridBagConstraints constraints; 
+    Insets insets = parent.getInsets();
+    //Component components[] = parent.getComponents(); //HS
+    this.components = parent.getComponents(); //HS
+    Dimension d;
+    Rectangle r = new Rectangle();
+    int i, diffw, diffh;
+    double weight;
+    GridBagLayoutInfo info;
+    
+    //System.out.println("parent="+parent);
+    
+    rightToLeft = !parent.getComponentOrientation().isLeftToRight();
+
+    ///
+     // If the parent has no slaves anymore, then don't do anything
+     // at all:  just leave the parent's size as-is.
+     ///
+    if (components.length == 0 &&
+	(columnWidths == null || columnWidths.length == 0) &&
+	(rowHeights == null || rowHeights.length == 0)) {
+      return;
+    }
+
+    ///
+     // Pass #1: scan all the slaves to figure out the total amount
+     // of space needed.
+     ///
+
+    info = getLayoutInfo(parent, PREFERREDSIZE);
+    d = getMinSize(parent, info);
+
+    if (parent.getWidth() < d.width || parent.getHeight() < d.height) {
+      info = getLayoutInfo(parent, MINSIZE);
+      d = getMinSize(parent, info);
+    }
+    layoutInfo = info; 
+
+    r.width = d.width;
+    r.height = d.height;
+
+     // DEBUG
+     //
+    System.out.println("Orig:");
+    DumpLayoutInfo(info);
+    for (compindex = 0 ; compindex < components.length ; compindex++) {
+	comp = components[compindex];
+	if (!comp.isVisible())
+	    continue;
+	constraints = lookupConstraints(comp);
+	DumpConstraints(constraints);
+    }
+    System.out.println("minSize " + r.width + " " + r.height);
+    ///
+
+    ///
+     // If the current dimensions of the window don't match the desired
+     // dimensions, then adjust the minWidth and minHeight arrays
+     // according to the weights.
+     ///
+
+    diffw = parent.getWidth() - r.width;
+    if (diffw != 0) {
+      weight = 0.0;
+      for (i = 0; i < info.width; i++)
+	weight += info.weightX[i];
+      if (weight > 0.0) {
+	for (i = 0; i < info.width; i++) {
+	  int dx = (int)(( ((double)diffw) * info.weightX[i]) / weight);
+	  info.minWidth[i] += dx;
+	  r.width += dx;
+	  if (info.minWidth[i] < 0) {
+	      r.width -= info.minWidth[i];
+	      info.minWidth[i] = 0;
+	  }
+	}
+      }
+      diffw = parent.getWidth() - r.width;
+    }
+    
+    else {
+        diffw = 0;
+    }
+
+    diffh = parent.getHeight() - r.height;
+    if (diffh != 0) {
+      weight = 0.0;
+      for (i = 0; i < info.height; i++)
+	weight += info.weightY[i];
+      if (weight > 0.0) {
+	for (i = 0; i < info.height; i++) {
+	  int dy = (int)(( ((double)diffh) * info.weightY[i]) / weight);
+	  info.minHeight[i] += dy;
+	  r.height += dy;
+	  if (info.minHeight[i] < 0) {
+	      r.height -= info.minHeight[i];
+	    info.minHeight[i] = 0;
+	  }
+	}
+      }
+      diffh = parent.getHeight() - r.height;
+    }
+    
+    else {
+        diffh = 0;
+    }
+
+    ///
+     // DEBUG
+     //
+     System.out.println("Re-adjusted:");
+     DumpLayoutInfo(info);
+     ///
+
+    ///
+     // Now do the actual layout of the slaves using the layout information
+     // that has been collected.
+     ///
+
+    info.startx = diffw/2 + insets.left;
+    info.starty = diffh/2 + insets.top;
+    for (compindex = 0 ; compindex < components.length ; compindex++) {
+      comp = components[compindex];
+      if (!comp.isVisible())
+	continue;
+
+      constraints = lookupConstraints(comp);
+
+      if (!rightToLeft) {
+        r.x = info.startx;
+        for(i = 0; i < constraints.tempX; i++)
+	    r.x += info.minWidth[i];
+      } else {
+	r.x = parent.getWidth() - (diffw/2 + insets.right);
+	for(i = 0; i < constraints.tempX; i++)
+	    r.x -= info.minWidth[i];
+      }
+
+      r.y = info.starty;
+      for(i = 0; i < constraints.tempY; i++)
+	  r.y += info.minHeight[i];
+
+      r.width = 0;
+      for(i = constraints.tempX;
+	  i < (constraints.tempX + constraints.tempWidth);
+	  i++) {
+	  r.width += info.minWidth[i];
+      }
+
+      r.height = 0;
+      for(i = constraints.tempY;
+	  i < (constraints.tempY + constraints.tempHeight);
+	  i++) {
+	  r.height += info.minHeight[i];
+      }
+
+      adjustForGravity(constraints, r);
+
+      // fix for 4408108 - components were being created outside of the container 
+    // fix for 4969409 "-" replaced by "+"  
+      if (r.x < 0) {
+          r.width += r.x;
+          r.x = 0;
+      }
+          
+      if (r.y < 0) {
+         r.height += r.y;
+         r.y = 0;
+      }
+
+      //
+       // If the window is too small to be interesting then
+       // unmap it.  Otherwise configure it and then make sure
+       // it's mapped.
+       ///
+
+      if ((r.width <= 0) || (r.height <= 0)) {
+	comp.setBounds(0, 0, 0, 0);
+      }
+      else {
+	if (comp.getX() != r.x || comp.getY() != r.y ||
+	    comp.getWidth() != r.width || comp.getHeight() != r.height) {
+	  comp.setBounds(r.x, r.y, r.width, r.height);
+	}
+      }
+    }
+
+    // DEBUG
+    //
+    System.out.println("Final:");
+    DumpLayoutInfo(info);
+    ///
+
+  }
+    
+
+   // Added for serial backwards compatability (4348425)
+   static final long serialVersionUID = 8838754796412211005L;
+}

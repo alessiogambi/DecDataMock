@@ -1,0 +1,32 @@
+import polyglot.ext.pbnj.tologic.*;
+
+public class Test4 {
+    
+    spec static int Y;
+
+    public String toString() {
+	return " Y=" + Y;
+    }
+
+    spec static int getY() { return Test4.Y; }
+
+    public void m3()
+	ensures this.Y != 0 {
+    }
+
+    public void m3b()
+	ensures getY() != 0 {
+    }
+    
+    
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test4 t1 = new Test4();
+	System.out.println(t1);
+	t1.m3();
+	System.out.println(t1);
+    }
+
+}

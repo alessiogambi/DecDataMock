@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="Mixed">
+	<test name="Mixed Robustness2 Test Suite">
+		<classes>
+			<class name="at.ac.testing.brooklyn.mixed.AutoScalerPolicyRobustness2Test" />
+		</classes>
+	</test>
+</suite>  

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="Original">
+	<test name="Original Test Suite">
+		<classes>
+			<class name="at.ac.testing.brooklyn.original.AutoScalerPolicyTest" />
+			<class name="at.ac.testing.brooklyn.original.AutoScalerPolicyMetricTest" />
+		</classes>
+	</test>
+</suite>  

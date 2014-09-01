@@ -1,0 +1,32 @@
+package com.tftpsuite.message;
+
+import pbnj.examples.primitives.PBJString;
+
+
+public class RRQMessage extends Message {
+	spec private PBJString _filename;
+	spec private PBJString _mode;
+	
+	public RRQMessage(String filename, String mode, int sourceTID, int destinationTID) {
+	   super(MessageType.RRQ, sourceTID, destinationTID);
+		_filename = new PBJString(filename);
+		_mode = new PBJString(mode);
+	}
+	
+	public String getFilename() {
+		return _filename.value();
+	}
+	
+	public String getMode() {
+		return _mode.value();
+	}
+
+	spec public PBJString getPBJFilename() {
+		return _filename;
+	}
+	
+	spec public PBJString getPBJMode() {
+		return _mode;
+	}	
+	
+}

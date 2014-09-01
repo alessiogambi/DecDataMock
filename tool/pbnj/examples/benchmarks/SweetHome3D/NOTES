@@ -1,0 +1,6 @@
+1. download and build SweetHome3D from sourceforge:
+    http://sweethome3d.sourceforge.net/
+2. replace Home.java and HomePieceOfFurniture.java inside src/com/eteks/sweethome3d/model/ directory with their .pbj versions provided here. 
+3. build pbj files via same command given in ../readme.txt 
+
+* please send your questions/requests to hesam@cs.ucla.edu  

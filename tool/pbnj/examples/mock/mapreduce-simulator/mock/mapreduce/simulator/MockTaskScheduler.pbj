@@ -1,0 +1,74 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.examples.primitives.PBJUtils;
+import pbnj.util.ArrayList;
+
+enum MockTaskSchedulerKind { FIFO, HFS }
+
+public abstract class MockTaskScheduler ensures valid() {
+
+
+    spec public MockTaskSchedulerKind policyKind;    
+    spec public MockHadoop hadoop;
+    spec public MockJob[] jobs;
+    spec public MockCluster cluster;
+    spec public MockTaskSchedulerKind schedPolicy;
+
+    public MockTaskScheduler(MockHadoop hadoop) { 
+	this.hadoop = hadoop; 
+	this.jobs = hadoop.jobs;
+	this.cluster = hadoop.cluster;
+    }
+
+    public ArrayList<MockTask> assignTasks(MockJob job)  {
+	this.jobs = hadoop.jobs;
+	return hadoop.assignTasks(job);
+    }
+
+    public int numAssignableTasks(MockJob job)  {
+	this.jobs = hadoop.jobs;
+	return hadoop.numAssignableTasks(job);
+    }
+
+    spec boolean valid() { return hadoop != null && policyKind != null; }
+
+    spec boolean assignTasksSpec(MockJob job, ArrayList<MockTask> result) {
+	return result != null 
+	    && assignTasksSpec_General(job, result)
+	    ;
+    }
+
+    spec boolean assignTasksSpec_General(MockJob job, ArrayList<MockTask> result) {	
+	return (all MockTask task : result | 
+		(task.job == job && task.assignable() && job.hasUndoneMaps() <==> task.taskType == MockTaskType.MAP)) 
+	    && uniqueTasks(result)
+// 	    && numTasks(job, result)
+	    ;	    
+    }
+
+//     spec boolean numTasks(MockJob job, ArrayList<MockTask> result) {
+// 	return shouldAssignJob(job) ? 
+// 	    result.size() == PBJUtils.Min(job.numAssignableMapOrReduceTasks(), jobSlotShare(job));
+// 	    result.isEmpty();
+//     }
+
+
+    spec abstract int numAssignableTasksSpec(MockJob job);
+
+    spec abstract boolean shouldAssignJob(MockJob job);
+
+    spec abstract int jobSlotShare(MockJob job);
+
+    spec boolean uniqueTasks(ArrayList<MockTask> result) {
+	int ts = result.size() - 1;
+	return all int i : 0 .. ts | 
+	    all int j : 0 .. ts |
+	    (i != j ==> result.get_spec(i) != result.get_spec(j));
+    }
+
+    public String toString() {
+	return "TaskScheduler." + policyKind;
+    }
+}

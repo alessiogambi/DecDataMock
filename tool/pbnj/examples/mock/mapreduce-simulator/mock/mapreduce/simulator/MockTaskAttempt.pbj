@@ -1,0 +1,45 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.PBJInternSet;
+import java.util.Arrays;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.BufferedWriter;
+import java.util.Random;
+
+public class MockTaskAttempt 
+    ensures valid() {    
+    spec public MockNode node;
+    spec public MockTaskStatus status;
+    spec public MockTask task;
+    spec public int id;
+
+    public MockTaskAttempt(int id, MockTask task, MockNode node) {
+	this.id = id;
+	this.task = task;
+	this.node = node;
+	this.status = MockTaskStatus.SUCCESS;
+    }
+
+    public String id() {
+	return "attempt_" + task.bareId + "_" + id;
+    }
+
+    public MockTaskAttempt status(MockTaskStatus s) { this.status = s; return this; }
+
+    spec public boolean valid() {
+	return node != null && status != null;
+    }
+
+    spec public boolean validTaskAttempt(MockTask t, int i) {
+	return valid() && task == t && id == i;
+    }
+
+    public String toString() {
+	return " attempt" + id + " " + id() + "[@" + node + ", status " + status + "]";
+    }
+}

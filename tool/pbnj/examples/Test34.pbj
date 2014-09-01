@@ -1,0 +1,51 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+import pbnj.examples.primitives.PBJMap;
+
+public class Test34 {
+    
+    spec PBJMap<Integer,Integer> map;
+
+    public Test34() { 
+	this.map = new PBJMap<Integer,Integer>();
+    }
+
+    public String toString() {
+	return " map=" + map;
+    }
+
+    public void add(int x, int y)
+	modifies fields PBJMap<Integer,Integer>:size, PBJMap<Integer,Integer>:keys, PBJMap<Integer,Integer>:values
+	ensures this.map.put_spec(x, y) {
+    }
+
+    public void remove(int x)
+	modifies fields PBJMap<Integer,Integer>:size, PBJMap<Integer,Integer>:keys, PBJMap<Integer,Integer>:values
+	ensures this.map.remove_spec(x) {
+	int z = 1/0;
+    }
+
+    public static void main(String[] args) {	
+// 	LogMap.SolverOpt_debugLevel(2);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	Test34 t1 = new Test34();
+	System.out.println(t1);
+	t1.add(11, 10);
+	System.out.println(t1);
+	t1.add(12, 9);
+	System.out.println(t1);
+	System.out.println(t1.map.keySet_spec());
+	System.out.println(t1.map.containsKey_spec(13));
+	t1.remove(13);
+	System.out.println(t1);
+	System.out.println(t1.map.keySet_spec());
+	System.out.println(t1.map.containsKey_spec(11));
+	t1.remove(11);
+	System.out.println(t1);
+	System.out.println(t1.map.keySet_spec());
+	System.out.println(t1.map.containsKey_spec(12));
+	t1.remove(12);
+	System.out.println(t1);
+    }
+
+}

@@ -1,0 +1,29 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+
+public class Test31 {
+    
+    spec int[][] xs;
+
+    public Test31() { 
+	this.xs = new int[][]{{1}, {2, 3}};
+    }
+
+    public String toString() {
+	return " xs=" + Arrays.deepToString(xs);
+    }
+
+    public void m30()
+	ensures this.xs != null && this.xs.length == 3 && this.xs[0] != null && this.xs[0].length == 1 && this.xs[0][0] == 5 {
+    }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(2);
+	LogMap.SolverOpt_IntBitWidth = 7;
+	Test31 t1 = new Test31();
+	System.out.println(t1);
+	t1.m30();
+	System.out.println(t1);
+    }
+
+}

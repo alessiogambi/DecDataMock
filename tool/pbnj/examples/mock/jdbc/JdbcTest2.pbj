@@ -1,0 +1,59 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.examples.primitives.*;
+import pbnj.util.ArrayList;
+
+public class JdbcTest2 {
+
+    spec public Jdbc jdbc;
+
+    public JdbcTest2(Jdbc jdbc) { this.jdbc = jdbc; }
+
+    spec public boolean init1Spec(PBJString dbId) {
+	return jdbc.databases().size() == 1 
+	    && jdbc.databaseExistsAndValid(dbId)
+	    ;
+    }
+
+    spec public boolean init2Spec(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field2Id) {
+	Database db = jdbc.databases().get_spec(dbId);
+	Table tb = db.tables().get_spec(tableId);
+	ArrayList<PBJString> fields = tb.fields();
+	return init1Spec(dbId) 
+	    && db.tables().size() == 1 
+	    && db.tableExistsAndValid(tableId)
+	    && fields.size() == 2 
+	    && fields.get_spec(0) == field1Id
+	    && fields.get_spec(1) == field2Id
+	    ;
+    }
+
+    public void init1(PBJString dbId) 
+	adds 1 Database, 1 PBJMap<PBJString,Table>
+	ensures init1Spec(dbId) {
+
+    }
+
+    public void init2(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field2Id) 
+	adds 1 Database, 1 PBJMap<PBJString,Table>, 1 Table, 1 ArrayList<Tuple>, 1 ArrayList<PBJString>	
+	ensures init2Spec(dbId, tableId, field1Id, field2Id) {
+
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	Jdbc jdbc = new Jdbc();
+	JdbcTest2 b = new JdbcTest2(jdbc);
+	PBJString dbId = PBJString.get("diskdb");
+	PBJString tableId = PBJString.get("disktb");
+	PBJString field1Id = PBJString.get("one");
+	PBJString field2Id = PBJString.get("two");
+	System.out.println(jdbc);
+	//b.init1(dbId);
+	b.init2(dbId, tableId, field1Id, field2Id);
+	System.out.println(jdbc);
+    }
+}
+
+ 

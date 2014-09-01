@@ -1,0 +1,4 @@
+package mock.mapreduce.simulator;
+
+public enum MockPriority { LOW, NORMAL, HIGH }
+

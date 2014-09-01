@@ -1,0 +1,151 @@
+package com.tftpsuite.message;
+
+import pbnj.examples.primitives.PBJString;
+
+public class ERRORMessage extends Message {
+
+   spec private static PBJString PBJS_ACCESS_VIOLATION = new PBJString("Access violation"); 
+   spec private static PBJString PBJS_DISK_FULL_OR_ALLOCATION_EXCEEDED = new PBJString("Disk full or allocation exceeded"); 
+   spec private static PBJString PBJS_FILE_ALREADY_EXISTS = new PBJString("File already exists"); 
+   spec private static PBJString PBJS_FILE_NOT_FOUND = new PBJString("File not found"); 
+   spec private static PBJString PBJS_ILLEGAL_TFTP_OPERATION = new PBJString("Illegal TFTP operation"); 
+   spec private static PBJString PBJS_NO_SUCH_USER = new PBJString("No such user"); 
+   spec private static PBJString PBJS_UNDEFINED = new PBJString("Undefined error"); 
+   spec private static PBJString PBJS_UNKOWN_TRANSFER_ID = new PBJString("Unknown transfer ID"); 
+   
+   spec public static PBJString getPBJErrorTypeMessage(ErrorType et) {
+      if (et == ErrorType.ACCESS_VIOLATION)
+         return PBJS_ACCESS_VIOLATION;
+      else if (et == ErrorType.DISK_FULL_OR_ALLOCATION_EXCEEDED)
+         return PBJS_DISK_FULL_OR_ALLOCATION_EXCEEDED;
+      else if (et == ErrorType.FILE_ALREADY_EXISTS)
+         return PBJS_FILE_ALREADY_EXISTS;
+      else if (et == ErrorType.FILE_NOT_FOUND)
+         return PBJS_FILE_NOT_FOUND;
+      else if (et == ErrorType.ILLEGAL_TFTP_OPERATION)
+         return PBJS_ILLEGAL_TFTP_OPERATION;
+      else if (et == ErrorType.NO_SUCH_USER)
+         return PBJS_NO_SUCH_USER;
+      else if (et == ErrorType.UNDEFINED)
+         return PBJS_UNDEFINED;
+      else if (et == ErrorType.UNKOWN_TRANSFER_ID)
+         return PBJS_UNKOWN_TRANSFER_ID;
+      else
+         return null;
+   }   
+   
+   public static String getErrorTypeMessage(ErrorType et) {
+      switch (et) {
+         case ACCESS_VIOLATION:
+            return "Access violation";
+            
+         case DISK_FULL_OR_ALLOCATION_EXCEEDED:
+            return "Disk full or allocation exceeded";
+            
+         case FILE_ALREADY_EXISTS:
+            return "File already exists";
+            
+         case FILE_NOT_FOUND:
+            return "File not found";
+            
+         case ILLEGAL_TFTP_OPERATION:
+            return "Illegal TFTP operation";
+            
+         case NO_SUCH_USER:
+            return "No such user";
+            
+         case UNDEFINED:
+            return "Undefined error";
+            
+         case UNKOWN_TRANSFER_ID:
+            return "Unknown transfer ID";
+            
+         default:
+            return null;
+      }
+   }
+   
+   public static short getErrorTypeCode(ErrorType et) {
+      switch (et) {
+         case ACCESS_VIOLATION:
+            return 2;
+            
+         case DISK_FULL_OR_ALLOCATION_EXCEEDED:
+            return 3;
+            
+         case FILE_ALREADY_EXISTS:
+            return 6;
+            
+         case FILE_NOT_FOUND:
+            return 1;
+            
+         case ILLEGAL_TFTP_OPERATION:
+            return 4;
+            
+         case NO_SUCH_USER:
+            return 7;
+            
+         case UNDEFINED:
+            return 0;
+            
+         case UNKOWN_TRANSFER_ID:
+            return 5;
+            
+         default:
+            return -1;
+      }
+   }
+   
+   public static ErrorType getErrorType(short errorCode) {
+      switch (errorCode) {
+         case 0:
+            return ErrorType.UNDEFINED;
+            
+         case 1:
+            return ErrorType.FILE_NOT_FOUND;
+            
+         case 2:
+            return ErrorType.ACCESS_VIOLATION;
+            
+         case 3:
+            return ErrorType.DISK_FULL_OR_ALLOCATION_EXCEEDED;
+            
+         case 4:
+            return ErrorType.ILLEGAL_TFTP_OPERATION;
+            
+         case 5:
+            return ErrorType.UNKOWN_TRANSFER_ID;
+            
+         case 6:
+            return ErrorType.FILE_ALREADY_EXISTS;
+            
+         case 7:
+            return ErrorType.NO_SUCH_USER;
+            
+         default:
+            return null;
+      }
+   }
+   
+   spec private ErrorType _errorType;
+   spec private PBJString _errorMessage;
+   
+   public ERRORMessage(ErrorType errorType, String errorMessage, int sourceTID, int destinationTID) {
+      super(MessageType.ERROR, sourceTID, destinationTID);
+      _errorType = errorType;
+      _errorMessage = new PBJString(errorMessage);
+   }
+
+   spec public ErrorType getErrorType() {
+      return _errorType;
+   }
+   
+   public String getErrorMessage() {
+      return _errorMessage.value();
+   }
+
+   spec public PBJString getPBJErrorMessage() {
+      return _errorMessage;
+   }
+   
+}

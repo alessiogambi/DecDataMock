@@ -1,0 +1,45 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+import pbnj.util.ArrayList;
+
+public class Test35 {
+    
+    spec ArrayList<Integer> list;
+
+    public Test35() { 
+	this.list = new ArrayList<Integer>();
+    }
+
+    public String toString() {
+	return " list=" + list;
+    }
+
+    public void add(int x)
+	modifies fields ArrayList<Integer>:size, ArrayList<Integer>:elementData
+	ensures this.list.add_spec(x) {
+    }
+
+    public void remove(int x)
+	modifies fields ArrayList<Integer>:size, ArrayList<Integer>:elementData
+	ensures this.list.remove_spec(x) {
+	int z = 1/0;
+    }
+
+    public static void main(String[] args) {	
+// 	LogMap.SolverOpt_debugLevel(2);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	Test35 t1 = new Test35();
+	System.out.println(t1);
+	t1.add(11);
+	System.out.println(t1);
+	t1.add(12);
+	System.out.println(t1);
+	t1.remove(13);
+	System.out.println(t1);
+	t1.remove(11);
+	System.out.println(t1);
+	t1.remove(12);
+	System.out.println(t1);
+    }
+
+}

@@ -1,0 +1,3 @@
+package mock.mapreduce.simulator;
+
+public enum MockTaskStatus { IDLE, RUNNING, SUCCESS, FAILED }

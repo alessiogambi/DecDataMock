@@ -1,0 +1,280 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.util.ArrayList;
+import java.util.Arrays;
+import java.io.IOException;
+import java.lang.StringBuffer;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
+
+public class MockHadoop ensures valid() {
+
+    spec public MockTaskScheduler scheduler;
+    spec public MockJob[] jobs;
+    spec public MockCluster cluster;
+
+    public MockHadoop(MockCluster cluster, MockTaskSchedulerKind kind) {
+	this.cluster = cluster;
+	this.scheduler = kind == MockTaskSchedulerKind.FIFO ? 
+	    (MockTaskScheduler) new MockTaskScheduler_FIFO(this) : 
+	    (MockTaskScheduler) new MockTaskScheduler_HFS(this);
+    }
+
+    public MockHadoop(MockCluster cluster) {
+	this(cluster, MockTaskSchedulerKind.FIFO);
+    }
+
+    public void setJobs(MockJob[] jobs) { this.jobs = jobs; }
+
+    spec boolean valid() {
+	int js = jobs.length;
+	return true
+	    && scheduler != null
+	    && cluster != null
+	    && all int i: 0 .. js - 1 | validJob(jobs[i], i)
+	    ;	    
+    }
+
+    spec boolean validJob(MockJob j, int idx) {
+	int js = jobs.length;
+	return j != null 
+	    && j.valid()
+	    && j.id >= 0
+	    && all int k: 0 .. js - 1 | (k != idx ==> j.uniqueIdAndTasks(jobs[k]))
+	    ;
+    }
+
+    public pure fresh ArrayList<MockTask> assignTasks(MockJob job) 
+	adds 1 ArrayList<MockTask>
+	ensures assignTasksSpec(job, result) {
+	return null;
+    }
+
+    spec boolean assignTasksSpec(MockJob job, ArrayList<MockTask> tasks) {
+	return (scheduler instanceof MockTaskScheduler_FIFO) ==>
+	    ((MockTaskScheduler_FIFO) scheduler).assignTasksSpec(job, tasks)
+	    && (scheduler instanceof MockTaskScheduler_HFS) ==>
+	    ((MockTaskScheduler_HFS) scheduler).assignTasksSpec(job, tasks)
+	    ;
+    }
+
+    public ArrayList<MockNode> assignNodes(int numTasks) 
+	modifies fields MockNode:status
+	adds 1 ArrayList<MockNode>
+	ensures assignNodesSpec(numTasks, result) {
+	return null;
+    }
+
+    spec boolean assignNodesSpec(int numTasks, ArrayList<MockNode> nodes) {
+	return true
+	    && nodes.size() == numTasks
+	    && (all MockNode n : nodes | 
+		(n.old.status == MockNodeStatus.IDLE && n.status == MockNodeStatus.BUSY))
+	    && all MockNode m | nodeFrameSpec(m, nodes)
+	    ;
+    }
+
+    public pure int numAssignableTasks(MockJob job) 
+	ensures result == numAssignableTasksSpec(job) {
+	return -1;
+    }
+
+    spec int numAssignableTasksSpec(MockJob job) {
+	return (scheduler instanceof MockTaskScheduler_FIFO) ?
+	    ((MockTaskScheduler_FIFO) scheduler).numAssignableTasksSpec(job)
+	    : ((MockTaskScheduler_HFS) scheduler).numAssignableTasksSpec(job)
+	    ;
+    }
+
+
+    spec boolean nodeFrameSpec(MockNode n, ArrayList<MockNode> nodes) {
+	boolean isAssigned = nodes.contains_spec(n);
+	return isAssigned ? n.status == MockNodeStatus.BUSY : n.status == n.old.status;
+    }
+
+    spec boolean haveAssignableTasks() { return some MockJob j : jobs | j.hasAssignableTask(); }
+
+    spec boolean haveUndoneJobs() { return some MockJob j : jobs | j.undone(); }
+
+    spec boolean initWorkloadSpec(int numJobs, int numTasksPerJob) {
+	return genWorkloadSpec(numJobs, numTasksPerJob)
+	    && all int i: 0 .. jobs.length - 1 | validInitJob(jobs[i], numTasksPerJob)
+	    ;
+    }
+
+    spec boolean doneWorkloadSpec(int numJobs, int numTasksPerJob) {
+	return genWorkloadSpec(numJobs, numTasksPerJob)
+	    && all int i: 0 .. jobs.length - 1 | 
+	    validDoneJob(jobs[i], numTasksPerJob)
+	    ;
+    }
+
+    spec boolean genWorkloadSpec(int numJobs, int numTasksPerJob) {
+	int js = jobs.length;
+	return js == numJobs 	    
+	    && jobs.length > 1 ==> differentPriorityJobs()
+	    ;
+    }
+
+    spec boolean differentPriorityJobs() {
+	PBJInternSet<MockJob> jobSet = { all MockJob j : jobs | true };
+	return (jobSet.>priority).size() > 1; 
+    }
+
+    spec boolean validInitJob(MockJob job, int numTasksPerJob) {
+	return validGenJob(job, numTasksPerJob)
+	    && job.status == MockTaskStatus.RUNNING//IDLE
+	    && all MockTask task : job.tasks | task.idle();
+    }
+
+    spec boolean validDoneJob(MockJob job, int numTasksPerJob) {
+	return validGenJob(job, numTasksPerJob)
+	    && job.status == MockTaskStatus.SUCCESS;
+    }
+
+    spec boolean validGenJob(MockJob job, int numTasksPerJob) {
+	return job.hadoop == this
+	    && job.tasks.length == numTasksPerJob;
+    }
+
+    public MockHadoop initWorkload(int numJobs, int numTasksPerJob, boolean doneWorkload) {
+	if (doneWorkload)
+	    doneWorkload(numJobs, numTasksPerJob);
+	else 
+	    initWorkload(numJobs, numTasksPerJob);
+	return this;
+    }
+
+    public void initWorkload(int numJobs, int numTasksPerJob)
+	modifies fields MockHadoop:jobs
+	adds numJobs MockJob, (numJobs * numTasksPerJob) MockTask
+	ensures initWorkloadSpec(numJobs, numTasksPerJob)
+    {
+    }
+
+    public void doneWorkload(int numJobs, int numTasksPerJob)
+	modifies fields MockHadoop:jobs
+	adds numJobs MockJob, (numJobs * numTasksPerJob) MockTask, (numJobs * numTasksPerJob) MockTaskAttempt
+	ensures doneWorkloadSpec(numJobs, numTasksPerJob)
+    {
+    }
+
+    void startSchedulingTasks() {
+	while (haveUndoneJobs()) {
+	    for (MockJob job : jobs) {
+		if (job.undone()) {
+		    ArrayList<MockTask> tasks = scheduler.assignTasks(job);
+		    System.out.println("\n\n** assigned tasks: " + tasks + " for job " + job.id());
+		    if (!tasks.isEmpty()) {
+			ArrayList<MockNode> nodes = assignNodes(tasks.size());
+			System.out.println("\n\n** assigned nodes: " + nodes + " for job " + job.id());
+			runAssignedTasks(tasks, nodes);
+		    }
+		}
+	    }
+	}
+    }
+
+    void acceptJobCompleted(MockJob job) {
+	// TODO
+    }
+
+    public void runAssignedTasks(ArrayList<MockTask> tasks, ArrayList<MockNode> nodes) {
+	for (int i = 0; i < tasks.size(); i++) {
+	    tasks.get(i).nextAttemptNode(nodes.get(i)).run();
+	}
+    }
+
+    void reportPoolShares() {
+	System.out.println("Free nodes: " + cluster.numIdleNodes());
+// 	for (Pool p : cluster.pools) 
+// 	    System.out.println(p + " gets " + ((MockTaskScheduler_HFS)scheduler).currentPoolShare(p) + " slots");
+    }
+
+    public String toString() {
+	return "MockHadoop Runtime:\n\tcluster: " + cluster + "\n\tscheduling: " + scheduler +
+	    "\n\tjobs: " + Arrays.toString(jobs) + "\n";
+    }
+
+    public String tasksToJson(PBJInternSet<MockTask> tasks) {
+	StringBuffer res = new StringBuffer();
+	String addr = "";
+	for (MockTask task : tasks) {
+	    String attempts = "";
+	    String addr0 = "";
+	    for (MockTaskAttempt attempt : task.attempts) {
+		int nodeId = attempt.node.id;
+		int rackId = attempt.node.rack.id;  
+		attempts += addr0 + "{\n\t\"location\" : {\n\t\t\"layers\" : [ \"" + rackId +"\", \"" + rackId + "." + nodeId +"\" ]\n\t},\n\t\"hostName\" : \"/" + rackId + "/" + rackId + "." + nodeId + "\",\n\t\"result\" : \"" + attempt.status + "\",\n\t\"startTime\" : 1240336647215,\n\t\"finishTime\" : 1240336651127,\n\t\"shuffleFinished\" : -1,\n\t\"sortFinished\" : -1,\n\t\"attemptID\" : \"" + attempt.id() + "\",\n\t\"hdfsBytesRead\" : 53639,\n\t\"hdfsBytesWritten\" : -1,\n\t\"fileBytesRead\" : -1,\n\t\"fileBytesWritten\" : 37170,\n\t\"mapInputRecords\" : 3601,\n\t\"mapOutputBytes\" : 247925,\n\t\"mapOutputRecords\" : 26425,\n\t\"combineInputRecords\" : 26425,\n\t\"reduceInputGroups\" : -1,\n\t\"reduceInputRecords\" : -1,\n\t\"reduceShuffleBytes\" : -1,\n\t\"reduceOutputRecords\" : -1,\n\t\"spilledRecords\" : 5315,\n\t\"mapInputBytes\" : -1\n\t}";
+		addr0 = ", ";
+	    }
+	    res.append(addr + "{\n\t\"startTime\" : 1240336753705,\n\t\"attempts\" : [ " + attempts + " ],\n\t\"preferredLocations\" : null,\n\t\"finishTime\" : -1,\n\t\"inputBytes\" : -1,\n\t\"inputRecords\" : -1,\n\t\"outputBytes\" : -1,\n\t\"outputRecords\" : -1,\n\t\"taskID\" : \"" + task.id() + "\",\n\t\"numberMaps\" : -1,\n\t\"numberReduces\" : -1,\n\t\"taskStatus\" : \"" + task.status + "\",\n\t\"taskType\" : \"" + task.taskType + "\"\n\t}");
+	    addr = ", ";
+	}
+	return res.toString();
+    }
+
+    public String workloadtoJson() {
+	StringBuffer res = new StringBuffer();
+	for (MockJob job : jobs) {
+	    PBJInternSet<MockTask> maps = job.mapTasks();
+	    PBJInternSet<MockTask> reduces = job.reduceTasks();
+	    String mapsStr = tasksToJson(maps);
+	    String reducesStr = tasksToJson(reduces);	
+	    res.append("{\n\t\"priority\" : \"" + job.priority + "\",\n\t\"user\" : \"hadoopqa\",\n\t\"jobName\" : null,\n\t\"jobID\" : \"job_" + job.id() + "\",\n\t\"jobProperties\" : {\n\t\"mapred.child.java.opts\" : \"-server -Xmx640m -Djava.net.preferIPv4Stack=true\"\n\t},\n\t\"mapTasks\" : [ " + mapsStr + " ],\n\t\"reduceTasks\" : [ " + reducesStr + " ],\n\t\"otherTasks\" : [],\n\t" + "\"finishTime\" : 1240336889659,\n\t\"computonsPerMapInputByte\" : -1,\n\t\"computonsPerMapOutputByte\" : -1,\n\t\"computonsPerReduceInputByte\" : -1,\n\t\"computonsPerReduceOutputByte\" : -1,\n\t\"submitTime\" : 1240335962848,\n\t\"launchTime\" : 1240335964437,\n\t\"heapMegabytes\" : 640,\n\t\"totalMaps\" : "+ maps.size() + ",\n\t\"totalReduces\" : "+ reduces.size() + ",\n\t\"outcome\" : \"" + job.status + "\",\n\t\"jobtype\" : \"JAVA\",\n\t\"directDependantJobs\" : [ ],\n\t" + "\"successfulMapAttemptCDFs\" : [ {\n\t\"maximum\" : 9223372036854775807,\n\t\"minimum\" : -9223372036854775808,\n\t\"rankings\" : [ ],\n\t\"numberValues\" : 0\n\t}, {\n\t\"maximum\" : 8185,\n\t\"minimum\" : 3237,\n\t\"rankings\" : [ {\n\t  \"relativeRanking\" : 0.05,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.1,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.15,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.2,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.25,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.3,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.35,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.4,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.45,\n\t  \"datum\" : 3237\n\t}, {\n\t  \"relativeRanking\" : 0.5,\n\t  \"datum\" : 3912\n\t}, {\n\t  \"relativeRanking\" : 0.55,\n\t  \"datum\" : 3912\n\t}, {\n\t  \"relativeRanking\" : 0.6,\n\t  \"datum\" : 3912\n\t}, {\n\t  \"relativeRanking\" : 0.65,\n\t  \"datum\" : 3912\n\t}, {\n\t  \"relativeRanking\" : 0.7,\n\t  \"datum\" : 3912\n\t}, {\n\t  \"relativeRanking\" : 0.75,\n\t  \"datum\" : 5796\n\t}, {\n\t  \"relativeRanking\" : 0.8,\n\t  \"datum\" : 5796\n\t}, {\n\t  \"relativeRanking\" : 0.85,\n\t  \"datum\" : 5796\n\t}, {\n\t  \"relativeRanking\" : 0.9,\n\t  \"datum\" : 5796\n\t}, {\n\t  \"relativeRanking\" : 0.95,\n\t  \"datum\" : 5796\n\t} ],\n\t\"numberValues\" : 4\n\t}, {\n\t\"maximum\" : 19678,\n\t\"minimum\" : 2813,\n\t\"rankings\" : [ {\n\t  \"relativeRanking\" : 0.05,\n\t  \"datum\" : 2813\n\t}, {\n\t  \"relativeRanking\" : 0.1,\n\t  \"datum\" : 2813\n\t}, {\n\t  \"relativeRanking\" : 0.15,\n\t  \"datum\" : 3212\n\t}, {\n\t  \"relativeRanking\" : 0.2,\n\t  \"datum\" : 3256\n\t}, {\n\t  \"relativeRanking\" : 0.25,\n\t  \"datum\" : 3383\n\t}, {\n\t  \"relativeRanking\" : 0.3,\n\t  \"datum\" : 3383\n\t}, {\n\t  \"relativeRanking\" : 0.35,\n\t  \"datum\" : 3430\n\t}, {\n\t  \"relativeRanking\" : 0.4,\n\t  \"datum\" : 3528\n\t}, {\n\t  \"relativeRanking\" : 0.45,\n\t  \"datum\" : 3533\n\t}, {\n\t  \"relativeRanking\" : 0.5,\n\t  \"datum\" : 3598\n\t}, {\n\t  \"relativeRanking\" : 0.55,\n\t  \"datum\" : 3598\n\t}, {\n\t  \"relativeRanking\" : 0.6,\n\t  \"datum\" : 3684\n\t}, {\n\t  \"relativeRanking\" : 0.65,\n\t  \"datum\" : 3755\n\t}, {\n\t  \"relativeRanking\" : 0.7,\n\t  \"datum\" : 3756\n\t}, {\n\t  \"relativeRanking\" : 0.75,\n\t  \"datum\" : 3818\n\t}, {\n\t  \"relativeRanking\" : 0.8,\n\t  \"datum\" : 3818\n\t}, {\n\t  \"relativeRanking\" : 0.85,\n\t  \"datum\" : 3855\n\t}, {\n\t  \"relativeRanking\" : 0.9,\n\t  \"datum\" : 4683\n\t}, {\n\t  \"relativeRanking\" : 0.95,\n\t  \"datum\" : 4928\n\t} ],\n\t\"numberValues\" : 16\n\t}, {\n\t\"maximum\" : 2652,\n\t\"minimum\" : 1757,\n\t\"rankings\" : [ {\n\t  \"relativeRanking\" : 0.05,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.1,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.15,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.2,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.25,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.3,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.35,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.4,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.45,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.5,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.55,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.6,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.65,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.7,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.75,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.8,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.85,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.9,\n\t  \"datum\" : 1757\n\t}, {\n\t  \"relativeRanking\" : 0.95,\n\t  \"datum\" : 1757\n\t} ],\n\t\"numberValues\" : 2\n\t} ],\n\t\"failedMapAttemptCDFs\" : [ {\n\t\"maximum\" : 9223372036854775807,\n\t\"minimum\" : -9223372036854775808,\n\t\"rankings\" : [ ],\n\t\"numberValues\" : 0\n\t}, {\n\t\"maximum\" : 9223372036854775807,\n\t\"minimum\" : -9223372036854775808,\n\t\"rankings\" : [ ],\n\t\"numberValues\" : 0\n\t}, {\n\t\"maximum\" : 9223372036854775807,\n\t\"minimum\" : -9223372036854775808,\n\t\"rankings\" : [ ],\n\t\"numberValues\" : 0\n\t}, {\n\t\"maximum\" : 23008,\n\t\"minimum\" : 23008,\n\t\"rankings\" : [ {\n\t  \"relativeRanking\" : 0.05,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.1,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.15,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.2,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.25,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.3,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.35,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.4,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.45,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.5,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.55,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.6,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.65,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.7,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.75,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.8,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.85,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.9,\n\t  \"datum\" : 23008\n\t}, {\n\t  \"relativeRanking\" : 0.95,\n\t  \"datum\" : 23008\n\t} ],\n\t\"numberValues\" : 1\n\t} ],\n\t\"successfulReduceAttemptCDF\" : {\n\t\"maximum\" : 83784,\n\t\"minimum\" : 83784,\n\t\"rankings\" : [ {\n\t  \"relativeRanking\" : 0.05,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.1,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.15,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.2,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.25,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.3,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.35,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.4,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.45,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.5,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.55,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.6,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.65,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.7,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.75,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.8,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.85,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.9,\n\t  \"datum\" : 83784\n\t}, {\n\t  \"relativeRanking\" : 0.95,\n\t  \"datum\" : 83784\n\t} ],\n\t\"numberValues\" : 1\n\t},\n\t\"failedReduceAttemptCDF\" : {\n\t\"maximum\" : 9223372036854775807,\n\t\"minimum\" : -9223372036854775808,\n\t\"rankings\" : [ ],\n\t\"numberValues\" : 0\n\t},\n\t"+ "\"mapperTriesToSucceed\" : [],\n\t\"failedMapperFraction\" : 0.0,\n\t\"relativeTime\" : 0,\n\t\"queue\" : null,\n\t\"clusterMapMB\" : -1,\n\t\"clusterReduceMB\" : -1,\n\t\"jobMapMB\" : -1,\n\t\"jobReduceMB\" : -1" + "\n}\n");
+	}
+	return res.toString();
+    }
+
+    void writeMumakFiles(String workloadJson, String topologyJson, String workloadFileName, String topologyFileName) {
+	try { 
+	    BufferedWriter out1 = new BufferedWriter(new FileWriter(workloadFileName));
+	    out1.write(workloadJson);
+	    BufferedWriter out2 = new BufferedWriter(new FileWriter(topologyFileName));
+	    out2.write(topologyJson);
+	    out1.close();
+	    out2.close();
+	} catch (IOException e1) {
+	    e1.printStackTrace();
+	    System.exit(1);
+	}
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 8;
+	LogMap.SolverOpt_ArrayMaxSize = 3;
+
+	boolean runSimulation = false;
+	int numPools = 1;
+	int numRacks = 2;
+	int numNodesPerRack = 6;
+	int numTasksPerJob = 10;
+	int numJobs = 3;
+	boolean outputToFile = false;
+	String topologyFileName = "", workloadFileName = "";
+	if (args.length >= 2) {
+	    workloadFileName = args[0];
+	    topologyFileName = args[1];
+	    outputToFile = true;
+	}
+	MockCluster c = new MockCluster(numRacks, numNodesPerRack).initPools(numPools);	
+	MockHadoop h = new MockHadoop(c, MockTaskSchedulerKind.
+				      FIFO
+				      //HFS
+				      );
+	h.initWorkload(numJobs, numTasksPerJob, !runSimulation);
+	System.out.println(h);
+	if (runSimulation)
+	    h.startSchedulingTasks();	
+	//h.reportPoolShares();
+	System.out.println(h);
+	if (outputToFile) {
+	    String topologyJson = c.toJson();
+	    String workloadJson = h.workloadtoJson();
+	    h.writeMumakFiles(workloadJson, topologyJson, workloadFileName, topologyFileName);
+	}
+    }       
+}

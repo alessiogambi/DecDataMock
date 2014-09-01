@@ -1,0 +1,31 @@
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.examples.primitives.PBJString;
+
+public class Test19 {
+    
+    spec PBJString x;
+    spec static final PBJString[] strs = { new PBJString("hi"), new PBJString("hello") };
+
+    public Test19() {
+	this.x = strs[0];
+    }
+
+    public String toString() {
+	return "x=" + x;
+    }
+
+    public void m18()
+	modifies fields Test19:x
+	ensures this.x != null && this.x.length() != 2 {
+    }
+    
+    public static void main(String[] args) {	
+// 	LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test19 t1 = new Test19();
+	System.out.println(t1);
+	t1.m18();
+	System.out.println(t1);
+    }
+
+}

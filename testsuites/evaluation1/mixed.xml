@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="Mixed">
+	<test name="Mixed Test Suite">
+		<classes>
+			<class name="at.ac.testing.brooklyn.mixed.AutoScalerPolicyTest" />
+			<class name="at.ac.testing.brooklyn.mixed.AutoScalerPolicyMetricTest" />
+		</classes>
+	</test>
+</suite>  

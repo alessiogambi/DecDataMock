@@ -1,0 +1,78 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import java.util.HashMap;
+import pbnj.util.ArrayList;
+import pbnj.examples.primitives.MyString;
+
+class StockData {
+    spec public int name;
+    spec public int first, high, low, last;
+    public StockData(int name, int first, int low, int high, int last) {
+	this.name = name;
+	this.first = first;
+	this.high = high;
+	this.low = low;
+	this.last = last;
+    }
+
+    public String toString() { 
+	return name + ": { first: " + first + ", low: " + low + ", high: " + high + ", last: " + last + " }"; 
+    }
+}
+
+public class Birt2 {
+
+    spec public int numQuotes;    
+    spec public ArrayList<MyString> companies; 
+    spec public ArrayList<StockData> quotes;
+
+    public Birt2(int numQuotes) {
+	this.numQuotes = numQuotes;
+	this.companies = new ArrayList<MyString>();	
+	this.quotes = new ArrayList<StockData>();
+	for (int i = 0; i < numQuotes; i++) 
+	    this.companies.add(new MyString("c" + i));
+    }
+
+    public void prepareDatabase(Jdbc db) 
+    {
+	System.out.println(db.execute("create database foo"));
+	System.out.println(db.execute("connect foo"));
+	System.out.println(db.execute("create table quotes ( name, first, low, high, last )"));
+	System.out.println(db.execute("insert into quotes values ( 0, 1, 0, 1, 0 )"));
+	System.out.println(db.execute("insert into quotes values ( 1, 15, 14, 16, 14 )"));
+	System.out.println(db.execute("insert into quotes values ( 2, 14, 13, 18, 13 )"));
+	System.out.println(db.execute("insert into quotes values ( 3, 3, 2, 4, 2 )"));
+	System.out.println(db.execute("insert into quotes values ( 4, 7, 6, 10, 6 )"));
+	System.out.println(db.execute("close database"));
+	System.out.println(db);
+    }
+
+    public void getStockValues(Jdbc db) 
+    {
+	System.out.println(db.execute("connect foo"));
+	System.out.println(db.execute("select * from quotes"));
+	System.out.println(db.execute("close database"));
+	System.out.println(db.queryResult());
+	ArrayList<Tuple> tps = db.queryResult();
+	for (int i = 0; i < numQuotes; i++) {
+	    ArrayList<Literal> tpp = tps.get(i).value;
+	    this.quotes.add(new StockData(tpp.get(0).intValue, tpp.get(1).intValue, tpp.get(2).intValue, tpp.get(3).intValue, tpp.get(4).intValue));
+	}
+
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	LogMap.SolverOpt_NaturalIntsOnly = true;
+	Birt2 b = new Birt2(5);
+	Jdbc db = new Jdbc();
+	LogMap.SolverOpt_ArrayMaxSize = b.numQuotes;
+	b.prepareDatabase(db);
+	b.getStockValues(db);
+	for (StockData d : b.quotes)
+	    System.out.println(d);
+    }
+}
+

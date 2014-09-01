@@ -1,0 +1,32 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+public class Test13 {
+    
+    spec static final int x = 5;
+    spec int y;
+
+    public String toString() {
+	return " x=" + x + " y=" + y;
+    }
+
+    public void m12() 
+    //modifies fields Test13:y
+	ensures m12Spec()
+    {
+    }
+
+    spec boolean m12Spec() {
+	return this.y == x + 1;
+    }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(3);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test13 t1 = new Test13();
+	System.out.println(t1);
+	t1.m12();
+	System.out.println(t1);
+    }
+
+}

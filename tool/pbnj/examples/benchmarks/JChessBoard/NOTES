@@ -1,0 +1,7 @@
+1. download and build JChessBoard from sourceforge:
+    http://jchessboard.sourceforge.net/
+2. replace Move.java and VirtualBoard.java inside jchessboard directory with their .pbj versions provided here. 
+3. build pbj files via same command given in ../readme.txt 
+
+* must build 32 bit (Java 1.6 won't work)
+* send your questions/requests to hesam@cs.ucla.edu

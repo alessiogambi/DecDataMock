@@ -1,0 +1,46 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.*;
+import java.util.Arrays;
+
+public class MockRack 
+    ensures valid() {
+    spec public int id;
+    spec public MockNode[] nodes;
+    spec public MockLoadStatus load;
+    static int idCtr = 0;
+
+    public MockRack(int id, MockNode[] nodes) {
+	this.id = id;
+	this.nodes = nodes;
+	this.load = MockLoadStatus.LOW;
+    }
+
+    public MockRack(MockNode[] nodes) {
+	this(idCtr++, nodes);
+    }
+
+    spec boolean valid() {
+	return validLoad();
+    }    
+
+    spec boolean validLoad() {
+	int numNodes = nodes.length;
+	int numIdleNodes = idleNodes().size();
+	return load == MockLoadStatus.LOW <==> numIdleNodes > numNodes / 2
+	    && load == MockLoadStatus.HIGH <==> numIdleNodes <= numNodes / 2
+	    ;
+    }
+    
+    spec PBJInternSet<MockNode> idleNodes() {
+	return { all MockNode n : nodes | n.status == MockNodeStatus.IDLE };
+    }
+    
+    spec boolean contains(MockNode m) { return some MockNode n : nodes | n == m; }
+
+    public String toString() {
+	return "\nRack " + id + " (" + load + " load): " + Arrays.toString(nodes);
+    }
+
+}

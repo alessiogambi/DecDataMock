@@ -1,0 +1,32 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+import pbnj.util.ArrayList;
+import pbnj.examples.primitives.PBJString;
+
+public class Test36 {
+    
+    spec static PBJString[] xs = new PBJString[]{null, null, null, null};
+
+    public Test36() { 
+    }
+
+    public String toString() {
+	return " xs=" + Arrays.toString(xs);
+    }
+
+    spec boolean fooSpec() { return Test36.xs.length == 2; }
+
+    public void foo()
+	ensures fooSpec() {
+    }
+
+    public static void main(String[] args) {	
+// 	LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	Test36 t1 = new Test36();
+	System.out.println(t1);
+	t1.foo();
+	System.out.println(t1);
+    }
+
+}

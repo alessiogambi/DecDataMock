@@ -1,0 +1,52 @@
+8
+
+dir
+607
+svn+ssh://hesam@mingus.cs.ucla.edu/space/prolang/svn/trunk/planb/PBnJ/tests/app-tries/JChessBoard-1.5/jchessboard
+svn+ssh://hesam@mingus.cs.ucla.edu/space/prolang/svn
+
+
+
+2010-03-09T20:45:32.494008Z
+566
+hesam
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+0e67c455-cee5-0310-b89f-e0e6264f67df
+
+Move.pbj
+file
+
+
+
+
+2010-02-24T00:32:42.000000Z
+06b88de33880994b310ebb422a155b5b
+2010-02-25T05:01:50.175031Z
+553
+hesam
+
+VirtualBoard.pbj
+file
+
+
+
+
+2010-03-09T23:18:37.000000Z
+bb40638cb3a26bca951c934f2408bb4e
+2010-03-09T20:45:32.494008Z
+566
+hesam
+

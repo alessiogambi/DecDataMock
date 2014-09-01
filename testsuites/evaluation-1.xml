@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="ICSE 2015 - Evaluation 1" verbose="1" annotations="JDK">
+	<suite-files>
+		<suite-file path="testsuites/evaluation1/original.xml"></suite-file>
+		<suite-file path="testsuites/evaluation1/literal.xml"></suite-file>
+		<suite-file path="testsuites/evaluation1/equivalent.xml"></suite-file>
+		<suite-file path="testsuites/evaluation1/scenario.xml"></suite-file>
+        <suite-file path="testsuites/evaluation1/mixed.xml"></suite-file>
+	</suite-files>
+</suite>

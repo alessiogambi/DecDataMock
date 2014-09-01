@@ -1,0 +1,5 @@
+package at.ac.testing.mocks;
+
+public enum SensorType { 
+	METRIC, POOL_SENSOR
+};

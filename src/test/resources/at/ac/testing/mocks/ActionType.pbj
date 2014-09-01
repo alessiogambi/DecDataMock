@@ -1,0 +1,5 @@
+package at.ac.testing.mocks;
+
+public enum ActionType { 
+	SCALE_UP, SCALE_DOWN, STAY
+};

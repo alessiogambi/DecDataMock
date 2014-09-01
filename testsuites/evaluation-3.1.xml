@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="ICSE 2015 - Evaluation 3.1 - Cost-Effectiveness"
+	verbose="1" annotations="JDK">
+	<test name="Original Test Cases">
+		<classes>
+			<class name="at.ac.testing.brooklyn.evaluation3.AutoScalerPolicyTest" />
+			<class name="at.ac.testing.brooklyn.evaluation3.AutoScalerPolicyMetricTest" />
+		</classes>
+	</test>
+	<test name="Automated Test Cases">
+		<parameter name="lowerBound" value="10" />
+		<parameter name="upperBound" value="50" />
+
+		<parameter name="minSize" value="0" />
+		<parameter name="maxSize" value="10" />
+
+		<parameter name="minPeriodBetweenExecs" value="0" />
+		<parameter name="resizeUpStabilizationDelay" value="0" />
+		<parameter name="resizeDownStabilizationDelay" value="0" />
+
+		<classes>
+			<class name="at.ac.testing.brooklyn.evaluation3.AutomationTest">
+			</class>
+		</classes>
+	</test>
+</suite>

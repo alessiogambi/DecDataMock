@@ -1,0 +1,65 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.examples.primitives.PBJUtils;
+import pbnj.util.ArrayList;
+
+public class MockTaskScheduler_HFS extends MockTaskScheduler ensures valid() {
+
+    public MockTaskScheduler_HFS(MockHadoop hadoop) {
+	super(hadoop);
+	this.policyKind = MockTaskSchedulerKind.HFS;
+    }
+
+    spec boolean valid() { return super.valid() && policyKind == MockTaskSchedulerKind.HFS; }
+
+    spec boolean assignTasksSpec(MockJob job, ArrayList<MockTask> result) {
+	return super.assignTasksSpec(job, result)
+	    && assignTasksSpec_HFS(job, result)
+	    ;
+    }
+
+    spec boolean assignTasksSpec_HFS(MockJob job, ArrayList<MockTask> result) {
+	return shouldAssignJob(job) ? 
+	    result.size() == PBJUtils.Min(job.numAssignableMapOrReduceTasks(), jobSlotShare(job)) :
+	    result.isEmpty();
+    }
+
+    spec int numAssignableTasksSpec(MockJob job) {
+	return shouldAssignJob(job) ? 
+	    PBJUtils.Min(job.numAssignableMapOrReduceTasks(), jobSlotShare(job)) : 0;
+    }
+
+    spec boolean shouldAssignJob(MockJob job) {
+	PBJInternSet<MockJob> jobsBelowMinShare = jobsBelowMinShare();
+	return jobsBelowMinShare.isEmpty() ? 
+	    fairness(job) : 
+	    jobsBelowMinShare.contains(job);
+    }
+
+    spec PBJInternSet<MockJob> jobsBelowMinShare() {
+	return { all MockJob j : jobs | 
+		(j.undone() && (j.numRunningTasks() < j.pool.jobMinShare(j))) };
+    }
+
+    spec boolean fairness(MockJob job) {
+	int deficit = jobFairnessDeficit(job);
+	return all MockJob j : jobs | deficit >= jobFairnessDeficit(j);
+    }
+
+    spec public int poolSlotShare(MockPool p) {	
+	int evenSplit = cluster.numIdleNodes() / cluster.numPools(); 
+	return PBJUtils.Max(p.minShare, evenSplit);
+    }
+
+    spec int jobSlotShare(MockJob job) { 
+	MockPool p = job.pool;
+	return poolSlotShare(p) / p.numJobs();
+    }
+
+    spec public int jobFairnessDeficit(MockJob job) { 
+	return jobSlotShare(job) - job.numRunningTasks();
+    }
+
+}

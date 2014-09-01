@@ -1,0 +1,50 @@
+Plan B in Java (PBnJ)
+A Java Extension with Declarative Execution
+Hesam Samimi, Todd Millstein
+
+Requirements
+------------
+Java 1.7
+
+Instructions
+------------
+
+A. Download PBnJ
+
+	 - download and untar PBnJ Compiler: http://www.hesam.us/planb/pbnj.tar.gz
+	 - set PBNJ_HOME to the directory
+	 - [optional] set PBNJ_CLASSPATH for adding anything to class path 
+
+B. Build library classes
+	   > make
+	   > cd examples
+
+B. Compiling Programs
+
+	  examples> ./pbnjc [.pbj file]
+
+	  example:
+
+	  examples> ./pbnjc IntSqrt.pbj
+
+C. Running Programs
+
+    	  examples> ./pbnj [class name]
+
+	  example:
+
+	  examples> ./pbnj IntSqrt
+
+
+    * SAT-Solver Choices:
+
+      0 - LightSAT4J
+      1 - DefaultSAT4J
+      2 - MiniSat 
+      3 - MiniSatProver (get UNSAT core)
+      4 - Glucose (default)
+      5 - CryptoMiniSat
+      6 - Lingeling
+
+	- to change solver choice invoke statement:
+		polyglot.ext.pbnj.tologic.LogMap.SolverOpt_SolverNum(<num>);

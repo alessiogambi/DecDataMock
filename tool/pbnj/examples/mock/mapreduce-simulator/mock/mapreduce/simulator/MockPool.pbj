@@ -1,0 +1,23 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.*;
+
+public class MockPool ensures valid() {
+
+    spec public MockPoolTier tier;
+    spec public int minShare;
+
+    public MockPool(MockPoolTier tier, int minShare) { this.tier = tier; this.minShare = minShare; }
+
+    spec boolean valid() { return tier != null && minShare >= 0; }
+
+    spec PBJInternSet<MockJob> jobs() { return { all MockJob job | job.pool == this }; }
+
+    spec int numJobs() { return jobs().size(); }
+
+    spec public int jobMinShare(MockJob j) { return minShare / numJobs(); }
+
+    public String toString() { return "Pool." + tier + " (min: " + minShare + ")"; }
+
+}

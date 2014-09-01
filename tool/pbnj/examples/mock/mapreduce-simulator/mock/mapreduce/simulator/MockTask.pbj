@@ -1,0 +1,183 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.PBJInternSet;
+import java.util.Arrays;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.BufferedWriter;
+import java.util.Random;
+
+public class MockTask
+    ensures valid() {
+
+    spec public MockTaskType taskType;
+    spec public MockTaskStatus status;
+    spec public MockJob job;
+    spec public MockTaskAttempt[] attempts;
+    spec public int failureChancePercent;
+    spec public int completionTime;
+    public MockNode nextAttemptNode;
+
+    public MockTask(MockTaskType taskType, MockJob job, MockTaskStatus status, int completionTime, int failureChancePercent) {
+	this.taskType = taskType;
+	this.job = job;
+	this.status = status;
+	this.completionTime = completionTime;
+	this.failureChancePercent = failureChancePercent;
+    }
+
+    public MockTask(MockTaskType taskType, MockJob job, MockTaskStatus status) {
+	this(taskType, job, status, 1, 0);
+    }
+
+    public MockTask(MockTaskType taskType, MockJob job) {
+	this(taskType, job, MockTaskStatus.IDLE);
+    }
+
+    static final Random rand = new Random(1111L);
+
+    public String bareId;
+    public String id;
+    static int mapIdCtr = 0;
+    static int reduceIdCtr = 0;
+
+    public MockTask(MockJob job, MockTaskType taskType) {
+	this.job = job;
+	this.taskType = taskType;
+	initIds();
+    }
+
+    spec public boolean valid() {
+	return taskType != null && status != null 
+	    && validAttempts()
+	    && validStatus()
+	    && failureChancePercent >= 0 && failureChancePercent <= 31
+	    && completionTime >= 1 && completionTime <= 10
+	    ;
+    }
+
+    spec public boolean validAttempts() {
+	int as = attempts.length;
+	return (all int i : 0 .. as - 1 | 
+		(attempts[i] != null && attempts[i].validTaskAttempt(this, i)))
+	    && (as > 1 ==> 
+		(all int k : 0 .. as - 2 | attempts[k].status == MockTaskStatus.FAILED))
+	    ;
+    }
+
+    spec public boolean validStatus() {
+	int as = attempts.length;
+	return (as == 0 ==> (status == MockTaskStatus.IDLE || status == MockTaskStatus.RUNNING))
+	    && (as > 0 ==> status == attempts[as - 1].status)
+	    ;
+    }
+
+    spec public boolean validTask(MockJob j) {
+	return valid() && job == j;
+    }
+
+    spec boolean containsFailure() {
+	return attempts.length > 1;
+    } 
+
+    spec boolean assignable() {
+	return status == MockTaskStatus.IDLE || status == MockTaskStatus.FAILED;
+    }
+
+    spec boolean undone() {
+	return status != MockTaskStatus.SUCCESS;
+    }
+
+    spec boolean idle() {
+	return status == MockTaskStatus.IDLE;
+    }
+
+    void initIds() {
+	String sym;
+	int cid;
+	if (taskType == MockTaskType.MAP) {
+	    sym = "m";
+	    cid = mapIdCtr++;
+	} else {
+	    sym = "r";
+	    cid = reduceIdCtr++;
+	}
+	bareId = job.id() + "_" + sym + "_00000" + cid;
+	id = "task_" + bareId;
+    }
+
+    public String id() {
+	if (id == null)
+	    initIds();
+	return id;
+    }
+
+    void runAttempt(MockTaskAttempt a) {
+	final MockTask thisTask = this;
+	final MockTaskAttempt thisAttempt = a;
+	a.status = this.status = MockTaskStatus.RUNNING;
+
+	Thread t = new Thread() {
+		public void run() {
+		    try { Thread.currentThread().sleep(completionTime * 1000); } catch (Exception e) { }
+		    thisAttempt.status = determineOutcome();
+		    reportCompletion(thisAttempt);		   
+		}
+		MockTaskStatus determineOutcome() {
+		    int failureChanceInv = 1;
+		    int randCmp = 1;
+		    if (failureChancePercent != 0) {
+			failureChanceInv = 100 / failureChancePercent;
+			randCmp = 0;
+		    }	
+		    return rand.nextInt(failureChanceInv) == randCmp 
+			? MockTaskStatus.FAILED : MockTaskStatus.SUCCESS;
+		}
+		void reportCompletion(MockTaskAttempt a) {
+		    status = a.status;
+		    System.out.println("finished attempt: " + a);
+		    a.node.status = MockNodeStatus.IDLE;
+		    job.acceptTaskCompleted(thisTask, a);
+		}
+	    };
+	t.start();
+    }
+
+
+    public MockTask nextAttemptNode(MockNode node) { this.nextAttemptNode = node; return this; }
+
+    public void run() {
+	run(nextAttemptNode);
+    }
+
+    public void run(MockNode node) {	
+	runAttempt(newAttempt(node));
+    }
+
+    public MockTaskAttempt newAttempt(MockNode node) {
+	return newAttempt(node, MockTaskStatus.IDLE); 
+    }
+
+    public MockTaskAttempt newAttempt(MockNode node, MockTaskStatus aStatus) {
+	MockTaskAttempt[] oldAttempts = attempts;
+	if (attempts == null) {
+	    attempts = new MockTaskAttempt[1];
+	} else {
+	    attempts = new MockTaskAttempt[attempts.length + 1];
+	    for (int i = 0; i < oldAttempts.length; i++)
+		attempts[i] = oldAttempts[i];
+	}
+	int idx = attempts.length - 1; 
+	MockTaskAttempt a = new MockTaskAttempt(idx, this, node);
+	attempts[idx] = a;
+	return a;
+    }
+
+    public String toString() {
+	return taskType + " task " + id() + "[attempts: " + Arrays.toString(attempts) + ", status " + status + ", completionTime: " + completionTime + " sec, failureChance: " + failureChancePercent + "%]";
+    }
+}

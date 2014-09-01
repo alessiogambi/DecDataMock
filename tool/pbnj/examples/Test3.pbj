@@ -1,0 +1,25 @@
+import polyglot.ext.pbnj.tologic.*;
+
+public class Test3 {
+    
+    spec Test3 next;
+
+    public String toString() {
+	return " next=" + next;
+    }
+
+    public void m2()
+	adds 1 Test3
+	ensures this.next != this && this.next != null && this.next.next == null {
+    }
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test3 t1 = new Test3();
+	System.out.println(t1);
+	t1.m2();
+	System.out.println(t1);
+    }
+
+}

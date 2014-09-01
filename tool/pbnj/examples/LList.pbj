@@ -1,0 +1,157 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Random;
+import java.util.Iterator;
+
+class LLNode {
+    spec public int value;
+    spec public LLNode next;
+    
+    public LLNode(int value) {
+	this(value, null);
+    }
+
+    public LLNode(int value, LLNode next) {
+	    this.value = value;
+	    this.next = next;
+    }
+    
+    spec public PBJInternSet<LLNode> tail() { return this.^next; }
+
+    public String toString() { return "N"+Integer.toString(value); }
+
+}    
+
+public class LList ensures isAcyclic()  {
+
+    static final int SIZE = 20;
+
+    spec public LLNode head;
+
+    public void head(LLNode h) { this.head = h; }
+
+    public LList() { super(); }
+
+    spec public PBJInternSet<LLNode> nodes() { return head.*next; }
+
+    spec public PBJInternSet<Integer> nodeValues() { return this.nodes().>value; }
+
+    spec public PBJInternSet<LLNode> nodesWithValue(int i) { 
+	return { all LLNode n : nodes() | n.value == i  };
+    }
+
+    spec public boolean isAcyclic() { 
+	return no LLNode n | n.tail().contains(n);
+	//return this.head == null || some LLNode n : nodes() | n.next == null;
+    }
+
+    spec public int occurrencesOf(int i) { return this.nodesWithValue(i).size(); }
+
+    spec public boolean isSorted() {
+	return all LLNode n : nodes() | (n.next == null || n.value <= n.next.value);
+    }
+
+    spec public boolean isPermutedSublistOf(LList lst) {
+	return all int i : nodeValues() | occurrencesOf(i) <= lst.occurrencesOf(i);
+    } 
+    
+    spec public boolean isPermutationOf(LList lst) { 
+	return this.isPermutedSublistOf(lst) && lst.isPermutedSublistOf(this);
+    }
+ 
+    // ENSURED METHODS    
+    public void bubbleSort() 
+	modifies fields LList:head, LLNode:next
+	ensures isPermutationOf(this.old) && isSorted() {
+	int z;
+	if (nodes().size() == SIZE) {
+	    head = null;
+	    head = head.next;
+	}
+	//int z = 1/0; // <-- TEST: RUN TIME ERROR INTRODUCED	
+	//head = null; //<-- TEST: RUN TIME ERROR INTRODUCED	
+	LLNode curr, tmp, prev = null, last = null;
+	while (last != head) {
+	    curr = head;
+	    while (curr.next != last) { // (curr != last) <-- TEST: ASSERTION VIOLATION BUG#1 INTRODUCED
+		if (curr.value > curr.next.value) {		
+		    //if (curr.value < curr.next.value) { // <-- TEST: ASSERTION VIOLATION BUG#3
+		    if (curr == head)
+			head = curr.next;
+		    else
+			prev.next = curr.next;
+		    prev = curr.next; // prev = curr; <-- TEST: ASSERTION VIOLATION BUG#2 INTRODUCED
+		    tmp = curr.next.next;
+		    curr.next.next = curr;
+		    curr.next = tmp;
+		} else {
+		    prev = curr;
+		    curr = curr.next;
+		}
+	    }
+	    last = curr;
+	}
+	//head = head.next; // <-- TEST: ASSERTION VIOLATION BUG#4
+	System.out.println(this);
+    }
+
+
+    public void add(int v) {
+	LLNode res = new LLNode(v);
+	add(res);
+    }
+
+    public void add(LLNode n) {
+	if (head == null) { 
+	    head = n;
+	} else {
+	    LLNode c = head;
+	    while (c.next != null)
+		c = c.next;
+	    c.next = n;
+	}
+    }
+
+    public String toString() { 
+	String res = "[ ";
+	LLNode n = head;
+	while (n != null) {
+	    res += n.value + " ";
+	    n = n.next;
+	}
+	res += "]";
+	return res;
+    }
+    
+    public static void main(String[] args) {
+	boolean useAltSolver = args.length > 0;
+	if (useAltSolver)
+	    polyglot.ext.pbnj.tologic.LogMap.SolverOpt_SolverNum(Integer.parseInt(args[0]));
+	//LogMap.SolverOpt_debugLevel(1);
+
+        LList tb = new LList();
+
+	Random rand = new Random(1111L);
+
+	// create an array of the given size
+	int[] a = new int[SIZE];
+	  	
+	for (int i = 0 ; i < SIZE; ++i)
+	    a[i] = i;
+	for (int i = SIZE; i>0; --i) {
+	    int n = rand.nextInt(SIZE);
+	    int temp = a[n];
+	    a[n] = a[i-1];
+	    tb.add(temp);
+	}
+
+	System.out.print("B=");
+        System.out.println(tb);
+	System.out.println("sorting B...");
+	tb.bubbleSort();
+	System.out.print("B=");
+        System.out.println(tb);
+    }
+
+}
+

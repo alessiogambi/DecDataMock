@@ -1,0 +1,36 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.util.Arrays;
+
+class Test29a { }
+
+public class Test29 {
+    
+    spec Test29a[] items;
+
+    public Test29() {
+	super();	
+    }
+    
+
+    public String toString() {
+	return " items=" + Arrays.toString(items);
+    }
+
+    public void m28() 
+	adds 1 Test29a
+	ensures this.items != null && this.items.length > 0 && this.items[0] != null
+    {
+    }
+
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test29 t29 = new Test29();
+	System.out.println(t29);
+	t29.m28();
+	System.out.println(t29);
+    }
+
+}

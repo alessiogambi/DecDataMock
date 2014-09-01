@@ -1,0 +1,201 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>brooklyn-policy</artifactId>
+	<packaging>jar</packaging>
+	<!-- NOTE THIS ONE ! -->
+	<version>0.7.0-M1-patch</version>
+	<name>Brooklyn Policies</name>
+	<description>
+		General policies and enrichers for managing entities
+	</description>
+
+	<parent>
+		<groupId>io.brooklyn</groupId>
+		<artifactId>brooklyn-parent</artifactId>
+		<version>0.7.0-M1</version>  <!-- BROOKLYN_VERSION -->
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+
+	<dependencies>
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-utils-common</artifactId>
+			<version>${brooklyn.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-api</artifactId>
+			<version>${brooklyn.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-test-support</artifactId>
+			<version>${brooklyn.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-core</artifactId>
+			<version>${brooklyn.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-policy</artifactId>
+			<version>${brooklyn.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-logback-includes</artifactId>
+			<version>${brooklyn.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-logback-xml</artifactId>
+			<version>${brooklyn.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-core</artifactId>
+			<version>${brooklyn.version}</version>
+
+		</dependency>
+
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>brooklyn-test-support</artifactId>
+			<version>${brooklyn.version}</version>
+
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>io.brooklyn</groupId>
+			<artifactId>brooklyn-core</artifactId>
+			<version>${brooklyn.version}</version>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<!-- This is a complex setup because we need to compute the coverage only 
+		of a submodule of the entire project, so we need first to instrument the 
+		classes, then deploy sources and ser file, then use the library in the target 
+		project, and finally merge all the coverage data ! -->
+	<profiles>
+		<profile>
+			<id>cobertura</id>
+			<activation>
+				<property>
+					<name>cobertura</name>
+				</property>
+			</activation>
+			<properties>
+				<working.dir>/tmp</working.dir>
+				<cobertura.format>html</cobertura.format>
+				<cobertura.working.dir>${working.dir}/${project.version}/cobertura</cobertura.working.dir>
+				<cobertura.complete.ser.file>${cobertura.working.dir}/complete.ser</cobertura.complete.ser.file>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-clean-plugin</artifactId>
+						<version>2.4.1</version>
+						<inherited>false</inherited>
+						<configuration>
+							<filesets>
+								<fileset>
+									<directory>.</directory>
+									<includes>
+										<include>**/*.ser</include>
+									</includes>
+								</fileset>
+								<fileset>
+									<directory>${cobertura.working.dir}</directory>
+								</fileset>
+							</filesets>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>1.7</version>
+						<executions>
+							<execution>
+								<id>cobertura-Instrument</id>
+								<phase>process-classes</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<taskdef resource="tasks.properties" />
+										<taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+										<echo message="::PROCESS CLASSES: ${artifactId}" />
+
+										<if>
+											<available file="${project.build.outputDirectory}" />
+											<then>
+												<echo message="::BEFORE INSTRUMENT" />
+												<cobertura-instrument>
+													<fileset dir="${project.build.outputDirectory}">
+														<include name="**/*.class" />
+													</fileset>
+												</cobertura-instrument>
+											</then>
+										</if>
+									</target>
+								</configuration>
+							</execution>
+							<execution>
+								<id>attach-artifact</id>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<attachartifact file="${basedir}/cobertura.ser"
+											classifier="cobertura" type="ser" />
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+						<dependencies>
+							<dependency>
+								<groupId>net.sourceforge.cobertura</groupId>
+								<artifactId>cobertura</artifactId>
+								<version>${cobertura.version}</version>
+							</dependency>
+							<dependency>
+								<groupId>ant-contrib</groupId>
+								<artifactId>ant-contrib</artifactId>
+								<version>20020829</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+					<plugin>
+						<artifactId>maven-source-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+						<inherited>true</inherited>
+					</plugin>
+				</plugins>
+			</build>
+			<dependencies>
+				<dependency>
+					<groupId>net.sourceforge.cobertura</groupId>
+					<artifactId>cobertura</artifactId>
+					<version>${cobertura.version}</version>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
+
+</project>

@@ -1,0 +1,36 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Collections;
+
+enum Foo { A, B }
+
+public class Test7 {
+    
+    spec Foo foo;
+
+    public String toString() {
+	return " foo=" + foo;
+    }
+
+    public void m6() 
+	modifies objects Collections.singleton(this)
+	ensures m6Spec()
+    {
+	Foo f = Foo.A;
+    }
+
+    spec boolean m6Spec() { 
+	return this.foo == Foo.A
+	    ; 
+    }
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test7 t1 = new Test7();
+	System.out.println(t1);
+	t1.m6();
+	System.out.println(t1);
+    }
+
+}

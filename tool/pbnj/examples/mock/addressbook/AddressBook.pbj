@@ -1,0 +1,34 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.examples.primitives.*;
+
+public class AddressBook {
+
+    spec MyMap<Integer,Integer> data;
+
+    public AddressBook() {
+	super();
+	this.data = new MyMap<Integer,Integer>();
+    }
+    
+    public void setEmailAddress(int name, int email) 
+	requires this.data != null
+	modifies fields MyMap<Integer,Integer>:size, MyMap<Integer,Integer>:keys, MyMap<Integer,Integer>:values
+        ensures this.data.put_spec(name, email) {
+	//data.put(name, email);
+    }
+    
+    public String toString() { 
+	return data.toString();
+    }
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	LogMap.SolverOpt_NaturalIntsOnly = true;
+	AddressBook b = new AddressBook();
+	System.out.println(b);
+	b.setEmailAddress(0, 10);
+	System.out.println(b);
+    }
+
+}

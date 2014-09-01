@@ -1,0 +1,620 @@
+package at.ac.testing.mocks;
+
+import org.testng.SkipException;
+
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * A simpler version of the original design
+ */
+public class BrooklynSchedule
+	extends Schedule {
+
+	spec int stabilityPeriodUp;
+	spec int stabilityPeriodDown;
+	spec int controlPeriod;
+	
+	/*
+	 * JAVA METHODS
+	 */
+	public BrooklynSchedule(int stabilityPeriodUp, int stabilityPeriodDown, int controlPeriod){
+		super();
+		this.stabilityPeriodUp = stabilityPeriodUp;
+		this.stabilityPeriodDown = stabilityPeriodDown;
+		this.controlPeriod = controlPeriod;
+	}
+	 
+	 
+	/*
+	 * Added for Evalution 3.2. Not used anywhere else.
+
+	 */	 
+	 
+	/*
+	 * Enable Conflicting Actions
+	 */
+	public void initConflicting()
+	{
+		initConflicting(new TimedAction[]{});
+	}
+	
+	public void initConflicting(TimedAction[] targetActions)
+	{
+		ensuresValidInputH(targetActions);
+		validSizeWithMinValueH( targetActions.length, 2 );
+		try{
+			initConflictingH();
+		} catch(java.lang.IllegalArgumentException e ){
+			if( e.getMessage().contains("no this.atoms") ){
+				throw new SkipException("Missing Precondition: The provided values are too large !\n" + this );
+			}
+		}
+	}
+	
+	void initConflictingH()
+		modifies fields
+			Schedule:actions,
+			Schedule:duration,
+			Schedule:minDuration,
+			Schedule:endState
+		adds this.size TimedAction
+		ensures
+			super.valid()
+			&&
+			super.timeOrdering() 			
+			&&
+			super.durationConstraints()
+			&&
+			super.preserveInput()
+			&&
+			super.startingState()
+			&&
+			valid()
+			&&
+			conflicting() 		// Conflicting Actions
+			&&
+			conflictingEndingState()
+	{	}
+	
+	// End of Evaluation 3.2 Code
+	 
+	void initH()
+		modifies fields
+			Schedule:actions,
+			Schedule:duration,
+			Schedule:minDuration,
+			Schedule:endState
+		adds this.size TimedAction
+		ensures
+			super.valid()
+			&&
+			super.timeOrdering() 			
+			&&
+			super.durationConstraints()
+			&&
+			super.preserveInput()
+			&&
+			super.startingState()
+			&&
+			super.endingState()
+			&&
+			valid()
+	{	}
+	
+	void validSizeWithMinValueH(int targetActionsLength, int minValue )
+		modifies fields Schedule:size
+		ensures
+			this.size >= targetActionsLength
+			&&
+			this.size >= minValue
+			&&
+			this.size > 0
+			&&
+			this.size < 5 // XXX FIXED 
+	{	}
+	
+	/*
+	 * Disable Concurrency
+	 */
+	
+	public void initNoConcurrent()
+	{
+		initNoConcurrent(new TimedAction[]{});
+	}
+	
+	public void initNoConcurrent(TimedAction[] targetActions)
+	{
+		ensuresValidInputH(targetActions);
+		validSizeH( targetActions.length );
+		// Finally, use the SAT to get a valid actions object
+		try{
+		
+			initNoConcurrentH();
+			
+		}catch(java.lang.IllegalArgumentException e ){
+			// Skip the test if the provided values are too large for the solver
+			// instead of Failing the test with an UNSAT
+			if( e.getMessage().contains("no this.atoms" )){
+				throw new SkipException("Missing Precondition: The provided values are too large !\n" + this );
+			}
+		}
+		
+	}
+	
+	void initNoConcurrentH()
+		modifies fields
+			Schedule:actions,
+			Schedule:duration,
+			Schedule:minDuration,
+			Schedule:endState
+		adds this.size TimedAction
+		ensures
+			super.valid()
+			&&
+			super.timeOrdering() 			
+			&&
+			super.durationConstraints()
+			&&
+			super.preserveInput() // Using >= solved the problem of duplicate inputs, hopefully, it did not introduced other problems
+			&&
+			super.startingState()
+			&&
+			valid()
+			&&
+			avoidConcurrency() 		// Avoid concurrency of events
+			&&
+			noConcurrencyEndingState() // PROBLEMS WITH THIS DEFINITION !
+	{	}
+	
+	/*
+	 * Enable Concurrency
+	 */
+	
+	public void initConcurrent()
+	{
+		initConcurrent(new TimedAction[]{});
+	}
+	
+	public void initConcurrent(TimedAction[] targetActions)
+	{
+		ensuresValidInputH(targetActions);
+		validSizeWithMinValueH( targetActions.length, 2 );
+		try{
+		
+			initConcurrentH();
+			
+		}catch(java.lang.IllegalArgumentException e ){
+			// Skip the test if the provided values are too large for the solver
+			// instead of Failing the test with an UNSAT
+			if( e.getMessage().contains("no this.atoms" )){
+				throw new SkipException("Missing Precondition: The provided values are too large !\n" + this );
+			}
+		}
+		
+	}
+	
+	void initConcurrentH()
+		modifies fields
+			Schedule:actions,
+			Schedule:duration,
+			Schedule:minDuration,
+			Schedule:endState
+		adds this.size TimedAction
+		ensures
+			super.valid()
+			&&
+			super.timeOrdering() 			
+			&&
+			super.durationConstraints()
+			&&
+			super.preserveInput()
+			&&
+			super.startingState()
+			&&
+			valid()
+			&&
+			concurrency() 		// Concurrency of events if required
+			&&
+			concurrencyEndingState()
+	{	}
+	
+	
+	/*
+	 * Enable Monitoring Blip
+	 */
+	
+	public void initMonitoringBlip()
+	{
+		initMonitoringBlip(new TimedAction[]{});
+	}
+	
+	public void initMonitoringBlip(TimedAction[] targetActions)
+	{
+		ensuresValidInputH(targetActions);
+		
+		// The configurations must allow for at least 2 non-concurrent actions within the same stabilityPeriod
+		try{
+			validSizeWithMinValueH_forSustainment( targetActions.length, 2 );
+		} catch( java.lang.AssertionError e) {
+			if( e.getMessage() != null && e.getMessage().contains( "Formula UNSAT!" )){
+				throw new SkipException("Missing Precondition: With provided configurations it is not possible to obtain the required Actions to create a Monitoring Blip !\n" + this );
+			}
+		}
+		
+		// Finally, use the SAT to get a valid actions object
+		try{
+		
+			initMonitoringBlipH();
+			
+		}catch(java.lang.IllegalArgumentException e ){
+			// Skip the test if the provided values are too large for the solver
+			// instead of Failing the test with an UNSAT
+			if( e.getMessage().contains("no this.atoms") ){
+				throw new SkipException("Missing Precondition: The provided values are too large !\n" + this );
+			}
+		}
+	}
+	
+	void initMonitoringBlipH()
+		modifies fields
+			Schedule:actions,
+			Schedule:duration,
+			Schedule:minDuration,
+			Schedule:endState
+		adds this.size TimedAction
+		ensures
+			super.valid()
+			&&
+			super.timeOrdering() 			
+			&&
+			super.durationConstraints()
+			&&
+			super.preserveInput()
+			&&
+			super.startingState()
+			&&
+			valid()
+			&&
+			blipping()
+			&&
+			blippingEndingState()
+	{	}
+	
+	/*
+	 * Enable Sustained Actions
+	 */
+	
+	public void initSustainedActions()
+	{
+		initSustainedActions(new TimedAction[]{});
+	}
+	
+	public void initSustainedActions(TimedAction[] targetActions)
+	{
+		ensuresValidInputH(targetActions);
+		// Here we need to check if the provided settings are valid
+		// In particular, we need to be sure that there might be this.size non concurrent events inside the same stability period
+		try{
+			validSizeWithMinValueH_forSustainment( targetActions.length, 2 );
+		} catch( java.lang.AssertionError e) {
+			if( e.getMessage() != null && e.getMessage().contains( "Formula UNSAT!" )){
+				throw new SkipException("Missing Precondition: With provided configurations it is not possible to obtain the required number of Sustained Actions !\n" + this );
+			}
+		}
+		
+		
+		// Finally, use the SAT to get a valid actions object
+		try{
+		
+			initSustainedActionsH();
+			
+		}catch(java.lang.IllegalArgumentException e ){
+			// Skip the test if the provided values are too large for the solver
+			// instead of Failing the test with an UNSAT
+			if( e.getMessage().contains("no this.atoms") ){
+				throw new SkipException("Missing Precondition: The provided values are too large !\n" + this );
+			}
+		}
+	}
+	
+	void initSustainedActionsH()
+		modifies fields
+			Schedule:actions,
+			Schedule:duration,
+			Schedule:minDuration,
+			Schedule:endState
+		adds this.size TimedAction
+		ensures
+			super.valid()
+			&&
+			super.timeOrdering() 			
+			&&
+			super.durationConstraints()
+			&&
+			super.preserveInput()
+			&&
+			super.startingState()
+			&&
+			valid()
+			&&
+			sustainment() 		// Sustained Actions
+			&&
+			sustainmentEndingState()
+	{	}
+	
+	// Since this method is called after ensures inputValues, we are sure that all the action types are correctly set (if any action is there!)
+	void validSizeWithMinValueH_forSustainment(int targetActionsLength, int minValue )
+		modifies fields Schedule:size
+		ensures
+			this.inputActions.length > 0 && this.controlPeriod > 0 ==>
+				this.size <= roundDown( getStabilityPeriodOf( this.inputActions[ 0 ] ), this.controlPeriod )
+			&&
+			this.inputActions.length > 0 && this.controlPeriod == 0 ==>
+				this.size <= roundDown( getStabilityPeriodOf( this.inputActions[ 0 ] ), 1 )
+			&&
+			this.size >= targetActionsLength
+			&&
+			this.size >= minValue
+			&&
+			this.size > 0
+			&&
+			this.size < 5 // XXX FIXED 
+	{	}
+	
+	public String toString() {
+    	return	super.toString() +
+    			"\nBrooklyn : \n" +
+				"\tControlPeriod " + controlPeriod + "\n" +
+				"\tStabilityPeriod Up " + stabilityPeriodUp + "\n" +
+				"\tStabilityPeriod Down " + stabilityPeriodDown + "\n" + 
+		"";
+	}
+	
+	/*
+	 * SPECIFICATION METHODS
+	 */
+	 
+	/*
+	 * Added for Evalution 3.2
+	 */	
+	// Note that this is an underspec but is enough to generate correct conflicting actions
+	spec boolean conflicting(){
+		TimedAction trigger = actions[ 0 ];
+		return
+			avoidConcurrency()
+			&&
+			all int i : 0 .. size - 2 | (
+				// All actions are scaling actions
+				isScalingAction( actions[ i ] )
+				&&
+				
+				// Opposite Scaling types
+				( i / 2 ) * 2 == i ==> // Even
+					actions[ i ].type == trigger.type
+				&& 
+				( i / 2 ) * 2 != i ==> // Odd
+					actions[ i ].type != trigger.type
+				&&
+				// Within Stability Period of Previous
+				withinStabilityPeriodOf( actions[ i ], actions[ i + 1 ] )
+			)
+		;
+	}
+	
+	spec boolean conflictingEndingState(){
+		return
+			minDuration == actions[ size -1 ].time + getStabilityPeriodOf( actions[ size - 1 ] )
+			&&
+			endState == actions[ size -1 ].targetSize
+		;
+	}
+	
+	// End of Evaluation 3.2
+	 
+	 
+	
+	spec public boolean valid() {
+		return
+			stabilityPeriodUp >= 0 &&
+			stabilityPeriodDown >= 0 &&
+			controlPeriod >= 0
+		;
+	}
+	
+	
+	spec boolean avoidConcurrency(){
+		return
+			size == 1 
+			||
+			all int i : 0 .. size - 2 | (
+				( isScalingAction( actions[ i ] ) && isScalingAction( actions[ i + 1 ] ) ) ==>
+					actions[ i + 1 ].time >=  actions[ i ].time + controlPeriod
+			)
+		;
+	}
+	
+	// TODO Under the assumption that we start at "control period" this can be revised !
+	// Enforce all the actions to be concurrent !
+	spec boolean concurrency(){
+		return
+			all TimedAction a : actions | ( 
+				all TimedAction b : actions | (
+					a != b ==>
+						concurrentActions( a, b ) 
+				)
+			)
+		;
+	}
+	
+	spec boolean noConcurrencyEndingState(){
+		return
+			(
+				controlPeriod > 0 && minDuration == ( getControlInterval( actions[ size - 1 ].time ) + 1 ) * controlPeriod
+				|| 
+				controlPeriod == 0 && minDuration == ( getControlInterval( actions[ size - 1 ].time ) + 1 )
+			)
+			&& 
+			endState == actions[ size - 1 ].targetSize
+		;
+	}
+	
+	spec boolean concurrencyEndingState(){
+		return
+			(
+				controlPeriod > 0 && minDuration == ( getControlInterval( actions[ 0 ].time ) + 1 ) * controlPeriod
+				|| 
+				controlPeriod == 0 && minDuration == ( getControlInterval( actions[ 0 ].time ) + 1 )
+			)
+			&& 
+			endState == actions[ size -1 ].targetSize
+		;
+	}
+	
+	spec boolean concurrentActions(TimedAction a, TimedAction b ){
+		return
+			getControlInterval( a.time ) == getControlInterval( b.time )
+			&&
+			a.type != ActionType.STAY && b.type != ActionType.STAY
+			&&
+			strictlyFollows( a, b ) ==>
+						! a.timeShifted( b )
+		;
+	}
+	
+	// We assume that controlPeriods start at 0
+	spec int getControlInterval(int time){
+		if( controlPeriod == 0 ) 
+			return time; 
+		else 
+			return roundDown(time,  controlPeriod);
+	}
+	
+	spec int roundDown( int nom, int den ){
+		return
+			( nom / den * den > nom ) ? ( nom / den ) - 1 : nom / den
+		;  
+	}
+	
+	// TODO this is underspec, but it should be ok because we want to generate sound schedule.
+	// This assume stability and generates a schedule made of sustained actions
+	spec boolean sustainment(){
+		TimedAction trigger = actions[ 0 ];
+		return
+			avoidConcurrency()
+			&&
+			isScalingAction( trigger )
+			&&
+			all int i : 1 .. size -1 | (
+				actions[ i ].type == trigger.type &&
+				withinStabilityPeriodOf( trigger, actions[ i ] )
+			)
+		;
+	}
+	
+	spec TimedAction getBiggestTargetStateAction(){
+		return {
+			some TimedAction actionA : actions | (
+				all TimedAction actionB : actions | (
+					actionA != actionB ==>
+						actionA.targetSize >= actionB.targetSize
+				)
+			) 		
+		};
+	}
+	
+	spec TimedAction getSmallestTargetStateAction(){
+		return {
+			some TimedAction actionA : actions | (
+				all TimedAction actionB : actions | (
+					actionA != actionB ==>
+						actionA.targetSize <= actionB.targetSize
+				)
+			) 		
+		};
+	}
+	
+	spec boolean sustainmentEndingState(){
+		return
+			minDuration == actions[ 0 ].time + getStabilityPeriodOf( actions[ 0 ] )
+			&& 
+			(
+				actions[ 0 ].type == ActionType.SCALE_UP && endState == getBiggestTargetStateAction().targetSize
+				||
+				actions[ 0 ].type == ActionType.SCALE_DOWN && endState == getSmallestTargetStateAction().targetSize
+			)
+		;
+	}
+
+	spec public int abs(int i) { return i < 0 ? -i : i; }
+	
+	spec public int max(int i, int j) { return i >= j ? i : j; }
+	
+	// Underspec: A blip is made of a scaling action said trigger
+	//	followed by a stay action within the same stability period
+	// the duration is the time of the trigger + stabilityPeriod
+	spec boolean blipping(){
+		TimedAction trigger = actions[ 0 ];
+		return
+			isScalingAction( trigger )
+			&&
+			some TimedAction stay : actions | (
+				! isScalingAction( stay ) &&
+				withinStabilityPeriodOf( trigger, stay ) &&
+				strictlyFollows( trigger, stay ) &&
+				no TimedAction action : actions | (
+					action != trigger &&
+					action != stay &&
+					withinStabilityPeriodOf( trigger , action )
+				)
+			)	
+		;
+	}
+	
+	spec boolean blippingEndingState(){
+		return
+			minDuration == actions[ 0 ].time + getStabilityPeriodOf( actions[ 0 ] )
+			&& 
+			endState == actions[ 0 ].startSize
+		;
+	}
+	
+	// Since the time ordering, consecutive positions	
+	spec boolean strictlyFollows( TimedAction a, TimedAction b ){
+		return
+			positionOf( b, this.actions ) == positionOf( a, this.actions ) + 1
+		;
+	}
+	
+	spec int positionOf( TimedAction action, TimedAction[] actions ){
+		return {
+			some int position : 0 .. actions.length - 1 | (
+				action == actions[ position ] 
+			)
+		};
+	}
+	
+	spec boolean isScalingAction( TimedAction a ){
+		return 
+			ActionType.STAY != a.type && a.type != null
+		; 
+	}
+	
+	spec int getStabilityPeriodOf( TimedAction action ){
+		return
+			ActionType.SCALE_UP == action.type ? stabilityPeriodUp :
+					ActionType.SCALE_DOWN ==  action.type  ? stabilityPeriodDown : 0
+		;
+	}
+	spec boolean withinStabilityPeriodOf( TimedAction a, TimedAction b ){
+		int stabilityPeriodOfA = getStabilityPeriodOf( a );
+		return
+			b.time < a.time + stabilityPeriodOfA  
+		;
+	}
+
+	
+}

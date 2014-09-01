@@ -1,0 +1,485 @@
+package com.tftpsuite.server;
+
+import java.util.HashMap;
+import java.util.Random;
+import java.util.HashSet;
+import java.util.Collections;
+
+import pbnj.examples.primitives.PBJString;
+import pbnj.examples.primitives.PBJMap;
+
+import pbnj.util.ArrayList;
+
+import polyglot.ext.pbnj.tologic.*;
+
+import com.tftpsuite.message.ACKMessage;
+import com.tftpsuite.message.DATAMessage;
+import com.tftpsuite.message.ERRORMessage;
+import com.tftpsuite.message.TIMEOUTMessage;
+import com.tftpsuite.message.ErrorType;
+import com.tftpsuite.message.Message;
+import com.tftpsuite.message.MessageType;
+import com.tftpsuite.message.RRQMessage;
+import com.tftpsuite.message.WRQMessage;
+
+public class MockServer {
+
+   private static int MAX_NEI = 5; //max number of non-error-inducing messages to generate
+   private static int NUM_WFEI = 5; //number of well-formed error-inducing messages to generate
+   spec private int _numNEI; //current number of non-error-inducing message to generate
+
+   private HashMap<String, MockFile> _files;
+   spec private MockServerState _state;
+   spec private short _expectedBlockNum;
+   spec private Message _inMessage;
+   spec private Message _outMessage;  
+   spec private ErrorType _errorType;
+   spec private short _receivedBlockNum;
+   private MockFile _currentFile;
+
+   private Random _random;
+   
+   spec static PBJString[] bunchOfStrings = { new PBJString("hi") };
+   
+   public MockServer() {
+      //LogMap.SolverOpt_debugLevel(1);
+      //LogMap.SolverOpt_IntBitWidth = 7;
+      _random = new Random();
+      _files = new HashMap<String, MockFile>();
+      MockFile file1 = new MockFile("file1");
+      file1.dataBlocks.add(new byte[] {1, 2, 3, 4 ,5});
+      _files.put(file1.name.value(), file1);
+      _state = MockServerState.LISTEN_NEW_CONNECTION;
+      printState();
+   }
+   
+   @Override
+   public String toString() {
+      String state = "Mockserver: " + super.toString() + "\n";
+      state += "\t_expectedBlockNum: " + _expectedBlockNum + "\n";
+      state += "\t_state: " + _state.toString() + "\n";
+      if (_outMessage != null) {
+         state += "\t_outMessage: " + _outMessage.toString() + "\n";
+      }
+      else {
+         state += "\t_outMessage: null\n";
+      }
+      if (_inMessage != null) {
+         state += "\t_inMessage: " + _inMessage.toString() + "\n";
+      }
+      else {
+         state += "\t_inMessage: null\n";
+      }
+      return state;
+   }
+   
+
+   private void printState() {
+      System.out.print(toString());
+   }
+      
+   public Message serverSendMessage() {
+      System.out.println("serverSendMessage called");
+      System.out.println("_numNEI: " + _numNEI);
+      _outMessage = buildMessage();
+      switch (_state) {
+         case SENDING_DATA:
+            _state = MockServerState.RECEIVING_ACK;
+            break;
+            
+         case SENDING_ACK:
+            if ( _inMessage.getMessageType() == MessageType.DATA && ((DATAMessage)_inMessage).getData().length < DATAMessage.MAX_DATA_SIZE) {
+               _state = MockServerState.LISTEN_NEW_CONNECTION;
+            }
+            else {
+               _state = MockServerState.RECEIVING_DATA;
+            }
+            break;
+            
+         default:
+            _state = MockServerState.LISTEN_NEW_CONNECTION;
+            break;
+      }
+      printState();
+      return _outMessage;
+   }
+
+   public void serverReceiveMessage(Message message) {
+      System.out.println("serverReceiveMessage called");
+      _inMessage = message;
+      switch (message.getMessageType()) {
+         case ACK:
+            receiveACK((ACKMessage)message);
+            break;
+            
+         case DATA:
+            receiveDATA((DATAMessage)message);
+            break;
+            
+         case ERROR:
+            receiveERROR((ERRORMessage)message);
+            break;
+            
+         case RRQ:
+            receiveRRQ((RRQMessage)message);
+            break;
+            
+         case WRQ:
+            receiveWRQ((WRQMessage)message);
+            break;
+            
+         default:
+            break;
+      }
+      printState();
+   }
+      
+   private void receiveERROR(ERRORMessage errorMessage) {
+      String msg = "MockServer: Received error message:\n";
+      msg += "\tErrorType: " + errorMessage.getErrorType().toString() + "\n";
+      msg += "\tErrorMessage: " + errorMessage.getErrorMessage() + "\n";
+      System.out.print(msg);
+      _state = MockServerState.LISTEN_NEW_CONNECTION; //TODO: handle non-fatal errors
+   }
+
+   private void receiveACK(ACKMessage ackMessage) {
+      _receivedBlockNum = ackMessage.getBlockNum();
+      if (_state == MockServerState.RECEIVING_ACK) {
+         if (_receivedBlockNum <= _expectedBlockNum) {
+            if (_receivedBlockNum == _currentFile.dataBlocks.size()) {
+               _state = MockServerState.LISTEN_NEW_CONNECTION;
+            }
+            else {
+               _state = MockServerState.SENDING_DATA;
+               if (_receivedBlockNum == _expectedBlockNum) {
+                  _expectedBlockNum++;
+                  _numNEI = _expectedBlockNum;
+               }
+            }
+         }
+         else {
+            _state = MockServerState.SENDING_ERROR;
+            _errorType = ErrorType.ILLEGAL_TFTP_OPERATION; //perhaps we should use a different error code here
+         }
+      }
+      else {
+         _state = MockServerState.SENDING_ERROR;
+         _errorType = ErrorType.ILLEGAL_TFTP_OPERATION;         
+      }
+   }
+   
+   private void receiveDATA(DATAMessage dataMessage) {
+      _receivedBlockNum = dataMessage.getBlockNum();
+      if (_state == MockServerState.RECEIVING_DATA) {
+         if (_receivedBlockNum <= _expectedBlockNum) {
+            _state = MockServerState.SENDING_ACK;
+            if (_receivedBlockNum == _expectedBlockNum) {
+               _expectedBlockNum++;
+               _numNEI = _expectedBlockNum;
+            }
+         }
+         else {
+            _state = MockServerState.SENDING_ERROR;
+            _errorType = ErrorType.ILLEGAL_TFTP_OPERATION; //perhaps we should use a different error code here
+         }
+      }
+      else {
+         _state = MockServerState.SENDING_ERROR;
+         _errorType = ErrorType.ILLEGAL_TFTP_OPERATION;         
+      }
+   }
+   
+   private void receiveRRQ(RRQMessage rrqMessage) {
+      String filename;
+      switch (_state) {
+         case LISTEN_NEW_CONNECTION:
+            filename = rrqMessage.getFilename();
+            if (_files.keySet().contains(filename)) {
+               _state = MockServerState.SENDING_DATA;
+               _currentFile = _files.get(filename);
+               _receivedBlockNum = 1;
+               _expectedBlockNum = 1;
+               _numNEI = 1;
+            }
+            else {
+               _state = MockServerState.SENDING_ERROR;
+               _errorType = ErrorType.FILE_NOT_FOUND; 
+            }
+            break;
+            
+         case RECEIVING_ACK:
+            _state = MockServerState.SENDING_NONFATAL_ERROR;
+            //TODO: implement according to RFC1350
+            break;
+            
+         default:
+            _state = MockServerState.SENDING_ERROR;
+            _errorType = ErrorType.ILLEGAL_TFTP_OPERATION;
+            break;
+      }
+   }
+      
+   private void receiveWRQ(WRQMessage wrqMessage) {      
+      switch (_state) {
+         case LISTEN_NEW_CONNECTION:
+            if (_files.keySet().contains(wrqMessage.getFilename())) {
+               _state = MockServerState.SENDING_ERROR;
+               _errorType = ErrorType.FILE_ALREADY_EXISTS;
+               break;
+            }
+            _currentFile = new MockFile(wrqMessage.getFilename());
+            _files.put(_currentFile.name.value(), _currentFile);
+            _state = MockServerState.SENDING_ACK;
+            _receivedBlockNum = 0;
+            _expectedBlockNum = 1;
+            _numNEI = 1;
+            break;
+            
+         case RECEIVING_DATA:
+            _state = MockServerState.SENDING_NONFATAL_ERROR;
+            //TODO: implement according to RFC1350
+            break;
+            
+         default:
+            _state = MockServerState.SENDING_ERROR;
+            _errorType = ErrorType.ILLEGAL_TFTP_OPERATION;
+            break;
+      }
+   }
+   
+   private Message buildMessage() {
+      ArrayList<Message> wfeims = NUM_WFEI > 0 ? buildWellFormedErrorInducingMessages() : new ArrayList<Message>(); 
+      ArrayList<Message> neims = _numNEI > 0 ? buildNonErrorInducingMessages() : new ArrayList<Message>();
+      TIMEOUTMessage t = new TIMEOUTMessage();
+      //Message c = buildCorrectMessage();
+      ArrayList<Message> messages = new ArrayList<Message>();
+      //messages.addAll(wfeims);
+      messages.addAll(neims);
+      messages.add(t);
+      //messages.add(c);
+      int i = _random.nextInt(messages.size());
+      Message selectedMessage = messages.get(i);
+      return selectedMessage;
+   }
+   
+   private pure fresh ArrayList<Message> buildNonErrorInducingMessages()
+   adds this._numNEI DATAMessage, this._numNEI ERRORMessage, this._numNEI ACKMessage, this._numNEI RRQMessage, this._numNEI WRQMessage
+   ensures buildNonErrorInducingMessagesSpec(result)
+   { return null; } //Mocked
+   
+   spec private boolean buildNonErrorInducingMessagesSpec(ArrayList<Message> msgs) {
+      return
+         msgs.valid() &&
+         msgs.size() == _numNEI
+         && all Message m : msgs | (isNonErrorInducingMessage(m))
+         &&
+         (
+            all int i : 0 .. msgs.size() - 1 |
+               all int j : 0 .. msgs.size() - 1 |
+                  ((i != j) ==> distinctMessages(msgs.get_spec(i), msgs.get_spec(j)))
+         );
+         
+   }
+   
+   private pure fresh ArrayList<Message> buildWellFormedErrorInducingMessages()
+   adds this.NUM_WFEI DATAMessage, this.NUM_WFEI ERRORMessage, this.NUM_WFEI ACKMessage, this.NUM_WFEI RRQMessage, this.NUM_WFEI WRQMessage
+   ensures buildWellFormedErrorInducingMessagesSpec(result)
+   { return null; } //Mocked
+   
+   spec private boolean buildWellFormedErrorInducingMessagesSpec(ArrayList<Message> msgs) {
+      return
+         msgs.valid() &&
+         msgs.size() == _numNEI
+         && all Message m : msgs | (!isNonErrorInducingMessage(m) && isWellFormedMessage(m))
+         &&
+         (
+            all int i : 0 .. msgs.size() - 1 |
+               all int j : 0 .. msgs.size() - 1 |
+                  ((i != j) ==> distinctMessages(msgs.get_spec(i), msgs.get_spec(j)))
+         );
+         
+   }
+   
+   spec private boolean distinctMessages(Message lhs, Message rhs) {
+      return
+         distinctDATAMessages(lhs, rhs) &&
+         distinctERRORMessages(lhs, rhs) &&
+         distinctRRQMessages(lhs, rhs) &&
+         distinctWRQMessages(lhs, rhs) &&
+         distinctACKMessages(lhs, rhs) &&
+         distinctTIMEOUTMessages(lhs, rhs);
+   }
+   
+   spec private boolean distinctDATAMessages(Message lhs, Message rhs) {
+      return
+         (lhs instanceof DATAMessage && rhs instanceof DATAMessage) ==>
+            (((DATAMessage)lhs).getBlockNum() != ((DATAMessage)rhs).getBlockNum());
+   }
+   
+   spec private boolean distinctACKMessages(Message lhs, Message rhs) {
+      return
+         (lhs instanceof ACKMessage && rhs instanceof ACKMessage) ==>
+            (((ACKMessage)lhs).getBlockNum() != ((ACKMessage)rhs).getBlockNum());      
+   }
+   
+   spec private boolean distinctERRORMessages(Message lhs, Message rhs) {
+      return
+         (lhs instanceof ERRORMessage && rhs instanceof ERRORMessage) ==>
+            (((ERRORMessage)lhs).getErrorType() != ((ERRORMessage)rhs).getErrorType());      
+   }
+   
+   spec private boolean distinctRRQMessages(Message lhs, Message rhs) {
+      return true; //TODO: not yet implementable
+   }   
+   
+   spec private boolean distinctWRQMessages(Message lhs, Message rhs) {
+      return true; //TODO: not yet implementable
+   }   
+   
+   spec private boolean distinctTIMEOUTMessages(Message lhs, Message rhs) {
+      return !(lhs instanceof TIMEOUTMessage && rhs instanceof TIMEOUTMessage);
+   }   
+   
+   spec private boolean isWellFormedMessage(Message m) {
+      return
+         (m instanceof RRQMessage && isWellFormedRRQMessage((RRQMessage)m)) ||
+         (m instanceof WRQMessage && isWellFormedWRQMessage((WRQMessage)m)) ||
+         (m instanceof DATAMessage && isWellFormedDATAMessage((DATAMessage)m)) ||
+         (m instanceof ACKMessage && isWellFormedACKMessage((ACKMessage)m)) ||
+         (m instanceof TIMEOUTMessage && isWellFormedTIMEOUTMessage((TIMEOUTMessage)m)) ||
+         (m instanceof ERRORMessage && isWellFormedERRORMessage((ERRORMessage)m));         
+   }
+   
+	spec private boolean isWellFormedRRQMessage(RRQMessage rrq) {
+      return 
+         rrq.getMessageType() == MessageType.RRQ &&
+         rrq.getPBJFilename() != null &&
+         rrq.getPBJFilename().length() > 0 &&
+         rrq.getPBJMode() != null &&
+         rrq.getPBJMode().length() > 0;
+   }
+   
+	spec private boolean isWellFormedWRQMessage(WRQMessage wrq) {
+      return 
+         wrq.getMessageType() == MessageType.WRQ &&
+         wrq.getPBJFilename() != null &&
+         wrq.getPBJFilename().length() > 0 &&
+         wrq.getPBJMode() != null &&
+         wrq.getPBJMode().length() > 0;
+   }
+
+   spec private boolean isWellFormedACKMessage(ACKMessage ack) {
+      return
+         ack.getMessageType() == MessageType.ACK &&
+         ack.getBlockNum() >= 0;
+   }
+
+   spec private boolean isWellFormedTIMEOUTMessage(TIMEOUTMessage t) {
+      return
+         t.getMessageType() == MessageType.TIMEOUT;
+   }
+
+   spec private boolean isWellFormedDATAMessage(DATAMessage data) {
+      return
+         data.getMessageType() == MessageType.DATA &&
+         data.getBlockNum() >= 0 &&
+         data.getData() != null &&
+         data.getData().length <= DATAMessage.MAX_DATA_SIZE;
+   }
+
+   spec private boolean isWellFormedERRORMessage(ERRORMessage error) {
+      return
+         error.getMessageType() == MessageType.ERROR &&
+         error.getErrorType() != null &&
+         error.getPBJErrorMessage() != null &&
+         error.getPBJErrorMessage().length() > 0;
+   }
+
+   spec private boolean isNonErrorInducingMessage(Message m) {
+      return
+         (m instanceof RRQMessage && isNonErrorInducingRRQMessage((RRQMessage)m)) ||
+         (m instanceof WRQMessage && isNonErrorInducingWRQMessage((WRQMessage)m)) ||
+         (m instanceof DATAMessage && isNonErrorInducingDATAMessage((DATAMessage)m)) ||
+         (m instanceof ACKMessage && isNonErrorInducingACKMessage((ACKMessage)m)) ||
+         (m instanceof TIMEOUTMessage && isNonErrorInducingTIMEOUTMessage((TIMEOUTMessage)m)) ||
+         (m instanceof ERRORMessage && isNonErrorInducingERRORMessage((ERRORMessage)m));         
+   }
+
+   spec private boolean isNonErrorInducingRRQMessage(RRQMessage rrq) {
+      return false;
+   }
+
+   spec private boolean isNonErrorInducingWRQMessage(WRQMessage wrq) {
+      return false;
+   }
+   	
+   spec private boolean isNonErrorInducingTIMEOUTMessage(TIMEOUTMessage t) {
+      return false;
+   }
+   	
+   spec private boolean isNonErrorInducingACKMessage(ACKMessage ack) {
+      
+      MessageType mt = _inMessage.getMessageType();
+      short blockNum = ack.getBlockNum();
+      return
+         isWellFormedACKMessage(ack) &&
+         (
+            (mt == MessageType.WRQ && blockNum == 0) ||
+            (mt == MessageType.DATA && blockNum < _expectedBlockNum)
+         );
+  }
+  
+   spec private boolean isNonErrorInducingDATAMessage(DATAMessage data) {
+      MessageType mt = _inMessage.getMessageType();
+      short blockNum = data.getBlockNum();
+      return
+         isWellFormedDATAMessage(data) &&
+            (mt == MessageType.RRQ && blockNum == 1) ||
+            (mt == MessageType.ACK && blockNum > 1 && blockNum <= _expectedBlockNum);
+   }
+
+   spec private boolean isNonErrorInducingERRORMessage(ERRORMessage error) {
+      return isWellFormedERRORMessage(error) && _state == MockServerState.SENDING_ERROR;
+   }
+
+   spec private boolean isCorrectMessage(Message m) {
+      return
+         (m instanceof RRQMessage && isCorrectRRQMessage((RRQMessage)m)) ||
+         (m instanceof WRQMessage && isCorrectWRQMessage((WRQMessage)m)) ||
+         (m instanceof DATAMessage && isCorrectDATAMessage((DATAMessage)m)) ||
+         (m instanceof ACKMessage && isCorrectACKMessage((ACKMessage)m)) ||
+         (m instanceof TIMEOUTMessage && isCorrectTIMEOUTMessage((TIMEOUTMessage)m)) ||
+         (m instanceof ERRORMessage && isCorrectERRORMessage((ERRORMessage)m));         
+   }
+   
+   spec private boolean isCorrectDATAMessage(DATAMessage data) {
+      return
+         isNonErrorInducingDATAMessage(data) &&
+         (data.getBlockNum() == _receivedBlockNum + 1);
+   }
+
+   spec private boolean isCorrectACKMessage(ACKMessage ack) {
+      return
+         isNonErrorInducingACKMessage(ack) &&
+         (ack.getBlockNum() == _receivedBlockNum);
+   }
+
+   spec private boolean isCorrectRRQMessage(RRQMessage rrq) {
+      return false;
+   }
+
+   spec private boolean isCorrectWRQMessage(WRQMessage wrq) {
+      return false;
+   }   
+
+   spec private boolean isCorrectERRORMessage(ERRORMessage error) {
+      return
+         isWellFormedERRORMessage(error) &&
+         error.getPBJErrorMessage() == ERRORMessage.getPBJErrorTypeMessage(_errorType);
+   }
+   
+   spec private boolean isCorrectTIMEOUTMessage(TIMEOUTMessage t) {
+      return false;
+   }
+   
+}

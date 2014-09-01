@@ -1,0 +1,173 @@
+package at.ac.testing.mocks;
+
+/**
+ * This class represent a timed action that contains
+ * data about an resize to execute and the time when it must/has been executed
+ */
+
+public class TimedAction {
+	
+	spec public int time = -1;
+	spec public int startSize= -1;
+	spec public int targetSize= -1;
+	
+	spec public ActionType type = null;
+	
+	spec public SensorType sensorType = SensorType.POOL_SENSOR; // Under debate ! We need to decide if this is a METRIC or a POOL_SENSOR
+
+	public TimedAction(){ }
+	
+	public TimedAction(int time, int startSize, int targetSize, ActionType type, SensorType sensorType){
+		this.time = time;
+		this.startSize = startSize;
+		this.targetSize = targetSize;
+		this.type = type;
+		this.sensorType = sensorType;
+	}
+	
+	public TimedAction(int time, int startSize, int targetSize){
+		this.time = time;
+		this.startSize = startSize;
+		this.targetSize = targetSize;
+	}
+	
+	public TimedAction(int time, int startSize, int targetSize, SensorType sensorType){
+		this.time = time;
+		this.startSize = startSize;
+		this.targetSize = targetSize;
+		this.sensorType = sensorType;
+	}
+	
+	public TimedAction(int time, int startSize, ActionType type){
+		this.time = time;
+		this.startSize = startSize;
+		this.type = type;
+	}
+	
+	public TimedAction(int time, int startSize, ActionType type, SensorType sensorType){
+		this.time = time;
+		this.startSize = startSize;
+		this.type = type;
+		this.sensorType = sensorType;
+	}
+	
+	public TimedAction(int time, ActionType type){
+		this.time = time;
+		this.type = type;
+	}
+	
+	public TimedAction(int time, ActionType type, SensorType sensorType){
+		this.time = time;
+		this.type = type;
+		this.sensorType = sensorType;
+	}
+	
+	public TimedAction(int time, ActionType type, int targetSize){
+		this.time = time;
+		this.type = type;
+		this.targetSize = targetSize;
+	}
+	
+	public TimedAction(int time, ActionType type, int targetSize, SensorType sensorType){
+		this.time = time;
+		this.type = type;
+		this.targetSize = targetSize;
+		this.sensorType = sensorType;
+	}
+	
+	/*
+	 * This is a softer version of equals
+	 */
+	spec boolean matches(TimedAction action){
+		return
+			// Valid StartSize must be preserved
+			this.startSize != -1 ==>
+				action.startSize == this.startSize
+			&&
+			// Valid TargetSize must be preserved 
+			this.targetSize > -1 ==>
+				action.targetSize == this.targetSize 
+			&& 
+			// Valid time must be preserved
+			this.time > -1 ==>
+				action.time == this.time
+			&&
+			// Type of actions must be preserved (redundant ?)
+			this.type != null ==>
+				action.type == this.type
+			&&
+			// Type of Sensor must be preserved (redundant ?)
+			this.sensorType != null ==>
+				action.sensorType == this.sensorType
+		;	
+	}
+	
+
+	spec public boolean equalsTo(TimedAction t){
+		return
+			this.time == t.time &&
+			this.startSize == t.startSize &&
+			this.targetSize == t.targetSize &&
+			this.type == t.type
+			// &&// Not sure about this really, should be implied ?
+			//this.sensorType == t.sensorType
+		; 
+	} 
+	
+	/*
+	 * If the an action with the same attributes but different time is
+	 */
+	spec public boolean timeShifted(TimedAction t){
+		return
+			this.startSize == t.startSize &&
+			this.targetSize == t.targetSize &&
+			this.type == t.type &&
+			this.sensorType == t.sensorType
+		; 
+	}
+	
+	// This is for ActionType
+	spec public boolean validType() {
+		return
+			this.startSize > -1 && this.targetSize > -1 ==> (
+				( this.startSize < this.targetSize && this.type == ActionType.SCALE_UP ) ||
+				( this.startSize > this.targetSize && this.type == ActionType.SCALE_DOWN ) ||
+				( this.startSize == this.targetSize && this.type == ActionType.STAY )
+			)
+		;
+	}
+
+	spec public boolean valid() {
+		return
+			time >= 0 &&
+			validSize() &&
+			validType() &&
+			this.sensorType != null
+		;
+	}
+	
+	// TODO Here Hardcoded values for the proof of concept
+	spec public boolean validSize(){
+		return
+			startSize >= 0 &&
+			startSize <= 30 &&
+			validTargetSize()
+		;
+	}
+	
+	spec public boolean validTargetSize(){
+		return
+			targetSize >= 0 &&
+			targetSize <= 30
+		;
+	}
+	
+	// For testing the specification
+	public void checkValidity()
+		ensures valid()
+	{	} 
+
+	public String toString() {
+		return	String.format("%4d : %-11s\t [%3d --> %3d]\ton {%10s}\t(%d)", time, type, startSize, targetSize, sensorType, hashCode()); 
+    }
+}

@@ -1,0 +1,39 @@
+package at.ac.testing.mocks;
+
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+
+import org.testng.SkipException;
+
+import pbnj.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * A Basic Schedule is a sequence of TimedActions that all together form an abstract Elastic Testing Scenario
+ */
+public class ScheduleAsserter {
+
+	spec Schedule schedule;
+	
+	public ScheduleAsserter(Schedule schedule){
+		this.schedule = schedule;
+	}
+	
+	spec boolean containsAsInput( TimedAction action ){
+		return
+			some TimedAction inputAction : schedule.inputActions | (
+				action.matches( inputAction )
+			)
+		;
+	}
+	
+	spec boolean containsAsActions( TimedAction action ){
+		return
+			some TimedAction actionA : schedule.actions | (
+				action.matches( actionA )
+			)
+		;
+	}
+ 
+}

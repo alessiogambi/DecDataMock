@@ -1,0 +1,8 @@
+cobertura.ser
+/target/
+*.log
+.classpath
+.project
+.settings/
+.externalToolBuilders/
+project-classpath

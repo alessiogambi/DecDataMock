@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="ICSE 2015 - Evaluation 3" verbose="1" annotations="JDK">
+
+	<test name="Concurrent Actions With Zero-length Control Period">
+		<!-- This forces the mock to use simulatenous events to recreate concurrent 
+			scenarios -->
+		<parameter name="minPeriodBetweenExecs" value="0" />
+		<parameter name="resizeUpStabilizationDelay" value="2000" />
+		<parameter name="resizeDownStabilizationDelay" value="2000" />
+		<classes>
+			<class
+				name="at.ac.testing.brooklyn.scenario.AutoScalerPolicyRobustness2Test">
+				<methods>
+					<include name="testConcurrentShrinkShrink"></include>
+					<include name="testConcurrentGrowGrow"></include>
+					<include name="testConcurrentGrowShrink"></include>
+					<include name="testConcurrentShrinkGrow"></include>
+				</methods>
+			</class>
+		</classes>
+	</test>
+	<test name="Concurrent Actions With One Unit-length Control Period">
+		<!-- This forces the mock to use simulatenous events to recreate concurrent 
+			scenarios -->
+		<parameter name="minPeriodBetweenExecs" value="1000" />
+		<parameter name="resizeUpStabilizationDelay" value="2000" />
+		<parameter name="resizeDownStabilizationDelay" value="2000" />
+		<classes>
+			<class
+				name="at.ac.testing.brooklyn.scenario.AutoScalerPolicyRobustness2Test">
+				<methods>
+					<include name="testConcurrentShrinkShrink"></include>
+					<include name="testConcurrentGrowGrow"></include>
+					<include name="testConcurrentGrowShrink"></include>
+					<include name="testConcurrentShrinkGrow"></include>
+				</methods>
+			</class>
+		</classes>
+	</test>
+
+<!-- 
+	<test name="Conflicting Events">
+		<classes>
+			<class name="at.ac.testing.brooklyn.evaluation3.ConflictingEventsTest">
+			</class>
+		</classes>
+	</test>
+ -->
+</suite>

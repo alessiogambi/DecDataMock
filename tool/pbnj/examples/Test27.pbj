@@ -1,0 +1,27 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+
+public class Test27 {
+    
+    spec int[][] xs;
+
+    //public Test27() { }
+
+    public String toString() {
+	return " xs=" + Arrays.deepToString(xs);
+    }
+
+    public void m26()
+	ensures this.xs != null && this.xs.length == 5 && this.xs[1] != null && this.xs[1].length > 1 && this.xs[1][1] == 5 {
+    }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test27 t1 = new Test27();
+	System.out.println(t1);
+	t1.m26();
+	System.out.println(t1);
+    }
+
+}

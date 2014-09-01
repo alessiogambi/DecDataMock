@@ -1,0 +1,55 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+public class NQueens ensures invariants() { 
+
+    spec int n;
+    spec boolean[][] cells;
+
+    public NQueens(int n) { this.n = n; this.cells = new boolean[n][n]; }
+
+    public String toString() {
+	String res = "";
+	for (int c = 0; c < n; c++) {
+	    for (int r = 0; r < n; r++)
+		res += (cells[c][r] ? "Q" : "-") + " ";
+	    res += "\n";
+	}
+ 	return res;
+    }
+
+    spec int abs(int i) { return i > 0 ? i : -1 * i; }
+
+    spec boolean invariants() {
+	return cells != null && cells.length == n
+	    && all int c : 0 .. n - 1 | (cells[c] != null && cells[c].length == n);
+    }
+    
+    spec PBJInternSet<Integer> queenCount() {
+	return { all int column : 0 .. n - 1 | some int row : 0 .. n - 1 | cells[column][row] };
+    }
+
+    spec boolean noAttacksOn(int c1, int r1) {
+	return all int c2 : 0 .. n - 1 |
+	    all int r2 : 0 .. n - 1 |
+	    (!(c1 == c2 && r1 == r2) ==>
+	     ((c1 == c2 || r1 == r2 || abs(c1 - c2) == abs(r1 - r2)) ==> !(cells[c1][r1] && cells[c2][r2])));
+    }
+
+    spec boolean noAttacks() {
+	return all int c1 : 0 .. n - 1 | all int r1 : 0 .. n - 1 | noAttacksOn(c1, r1);
+    }
+
+    public void nqueens()
+	modifies fields NQueens:cells
+	ensures queenCount().size() == this.n && noAttacks() { }
+
+    public static void main(String[] args) {	
+	LogMap.SolverOpt_IntBitWidth = 5;
+	NQueens t = new NQueens(8);
+	System.out.println(t);
+	t.nqueens();
+	System.out.println(t);
+    }
+
+}

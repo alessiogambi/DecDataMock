@@ -1,0 +1,81 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.util.ArrayList;
+import pbnj.examples.primitives.*;
+
+class StockData {
+    spec public MyString name;
+    spec public int open, high, low, close;
+    public String toString() { 
+	return name + ": { open: " + open + ", low: " + low + ", high: " + high + ", close: " + close + " }"; 
+    }
+}
+
+public class Birt1 {
+
+    spec public int numQuotes;    
+    spec public ArrayList<MyString> companies; 
+    spec public ArrayList<StockData> quotes;
+
+    public Birt1(int numQuotes) {
+	this.numQuotes = numQuotes;
+	this.companies = new ArrayList<MyString>();	
+	this.quotes = new ArrayList<StockData>();
+	for (int i = 0; i < numQuotes; i++) 
+	    this.companies.add(new MyString("c" + i));
+    }
+
+    spec boolean validQuote(StockData q) {
+	return (q != null &&
+		q.name != null &&
+		q.open >= 0 && 
+		q.close >= 0 && 
+		q.open != q.close &&
+		q.low >= 0 &&
+		q.high > q.low &&
+		q.high >= q.open &&
+		q.high >= q.close &&
+		q.low <= q.open &&
+		q.low <= q.close);
+    }
+
+    spec boolean validQuotes() {
+	return all StockData q : quotes | validQuote(q);
+    }
+
+    spec boolean distinct2Quotes(StockData q1, StockData q2) {
+	return (q1 != q2 &&
+		q1.name != q2.name &&
+		q1.low != q2.low &&
+		q1.high != q2.high &&
+		q1.open != q2.open &&
+		q1.close != q2.close);
+    }
+
+    spec boolean distinctQuotes() {
+	return all StockData q1 : quotes | 
+	    (all StockData q2 : quotes | 
+	     (q1 == q2 || distinct2Quotes(q1, q2)));
+    }
+
+    public void getStockValues() 
+	modifies fields ArrayList<StockData>:size, ArrayList<StockData>:elementData
+	adds this.numQuotes StockData
+	ensures this.quotes.size() == this.numQuotes
+	        && validQuotes() 
+	        && distinctQuotes()	
+    {	
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	LogMap.SolverOpt_NaturalIntsOnly = true;
+	Birt1 b = new Birt1(15);
+	LogMap.SolverOpt_ArrayMaxSize = b.numQuotes;
+	b.getStockValues();
+	for (StockData d : b.quotes)
+	    System.out.println(d);
+    }
+}
+

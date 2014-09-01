@@ -1,0 +1,54 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import java.util.HashMap;
+import pbnj.util.ArrayList;
+
+public class JdbcTest1 {
+
+    public void prepareDatabase(Jdbc db) 
+    {
+	System.out.println(db.execute("create database foo"));
+	System.out.println(db.execute("connect foo"));
+	System.out.println(db.execute("create table people ( id, name, razk, baz, bar )"));
+	System.out.println(db.execute("insert into people values ( 10, 'jo', 1.20, 'abi', 'per' )"));
+	System.out.println(db.execute("insert into people values ( 11, 'mo', 3.50, 'keep', 'this' )"));
+	System.out.println(db.execute("close database"));
+	System.out.println(db);
+    }
+
+    public void getStockValues(Jdbc db) 
+    {
+	System.out.println(db.execute("connect foo"));
+	System.out.println(db.execute("select * from people"));
+	ResultSet rs = db.queryResult();
+	System.out.println(rs);
+	try {
+	    while (rs.next()) {
+		ArrayList<String> ls = new ArrayList<String>();
+		for (int i = 1; i <= 5; i++)
+		    ls.add(rs.getString(i));
+		System.out.println(ls);
+	    }
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    System.exit(1);
+	}
+	
+// 	System.out.println(db.execute("select * from people where name = 'mo'"));
+// 	System.out.println(db.queryResult());
+// 	System.out.println(db.execute("select * from people where razk = 3.50"));
+// 	System.out.println(db.queryResult());
+// 	System.out.println(db.execute("close database"));
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	LogMap.SolverOpt_NaturalIntsOnly = true;
+	JdbcTest1 b = new JdbcTest1();
+	Jdbc db = new Jdbc();
+	b.prepareDatabase(db);
+	b.getStockValues(db);
+    }
+}
+

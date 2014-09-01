@@ -1,0 +1,27 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+class Test15 {
+    spec int x;
+    spec int fn() { return 1; }
+    public void m14(Object o) 
+	ensures m14Spec(((Test15) o).x)
+    {
+    }
+
+    spec boolean m14Spec(int v) {
+	return this.x == 1;
+    }
+
+    public String toString() { return " x=" + x; }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test15 t1 = new Test15();
+	System.out.println(t1);
+	t1.m14(t1);
+	System.out.println(t1);
+    }
+
+}

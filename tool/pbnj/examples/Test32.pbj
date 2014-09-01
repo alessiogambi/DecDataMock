@@ -1,0 +1,30 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+
+class Test32a { }
+public class Test32 {
+    
+    spec Test32a[][] xs;
+
+    public Test32() { 
+	this.xs = new Test32a[][]{{}, {new Test32a()}};
+    }
+
+    public String toString() {
+	return " xs=" + Arrays.deepToString(xs);
+    }
+
+    public void m31()
+	ensures this.xs != null && this.xs.length == 3 && this.xs[0].length == 1 && this.xs[0][0] != null {
+    }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(2);
+	LogMap.SolverOpt_IntBitWidth = 7;
+	Test32 t1 = new Test32();
+	System.out.println(t1);
+	t1.m31();
+	System.out.println(t1);
+    }
+
+}

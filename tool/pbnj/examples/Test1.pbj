@@ -1,0 +1,39 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.awt.Point;
+import pbnj.util.ArrayList;
+
+public class Test1 {
+    
+    spec ArrayList<Integer> nums1;
+    spec ArrayList<Point> points3;
+
+    public Test1() {
+	super();	
+	this.nums1 = new ArrayList<Integer>();
+	this.points3 = new ArrayList<Point>();
+    }
+    
+
+    public String toString() {
+	return " nums1=" + nums1 + " points3=" + points3;
+    }
+
+    public void m0() 
+	modifies fields ArrayList<Integer>:elementData, ArrayList<Integer>:size, ArrayList<Point>:elementData, ArrayList<Point>:size
+	adds 1 Point
+	ensures this.nums1.size() > 0 && this.nums1.get_spec(0) == 4 && this.points3.size() == 1 && this.points3.get_spec(0) != null
+    {
+    }
+
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(3);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test1 t1 = new Test1();
+	System.out.println(t1);
+	t1.m0();
+	System.out.println(t1);
+    }
+
+}

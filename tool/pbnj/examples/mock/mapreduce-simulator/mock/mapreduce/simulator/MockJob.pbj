@@ -1,0 +1,210 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.PBJInternSet;
+import java.util.Arrays;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Collection;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.BufferedWriter;
+
+public class MockJob ensures valid() {
+    spec public int id;
+    spec public MockPool pool;
+    spec public MockPriority priority;
+    spec public MockTaskStatus status;
+    spec public MockTask[] tasks;
+    spec public MockHadoop hadoop;
+
+    public MockJob(int id, MockPool pool, MockPriority priority, MockTaskStatus status, MockTask[] tasks, MockHadoop hadoop) {
+	this.id = id;
+	this.pool = pool;
+	this.priority = priority;
+	this.status = status;
+	this.tasks = tasks;
+	this.hadoop = hadoop;
+    }
+
+    public String id() { return "000000000000_000" + id; }
+
+    spec public int priorityLevel() { 
+	return priority == MockPriority.LOW ? 0 : (priority == MockPriority.NORMAL ? 1 : 2); 
+    }
+
+    spec public PBJInternSet<MockTask> getTasksOfType(MockTaskType type) {
+	return { all MockTask task : tasks | task.taskType == type };
+    }
+
+    spec public PBJInternSet<MockTask> getTasksOfStatus(MockTaskStatus status) {
+	return { all MockTask task : tasks | task.status == status };
+    }
+
+    spec public PBJInternSet<MockTask> mapTasks() { return getTasksOfType(MockTaskType.MAP); }
+
+    spec public PBJInternSet<MockTask> reduceTasks() { return getTasksOfType(MockTaskType.REDUCE); }
+
+    spec public boolean hasUndoneMaps() { return some MockTask m : mapTasks() | m.undone(); }
+
+    spec public boolean hasAssignableMaps() { return some MockTask m : mapTasks() | m.assignable(); }
+
+    spec public boolean hasIdleMaps() { return some MockTask m : mapTasks() | m.idle(); }
+
+    spec public boolean hasIdleReduces() { return some MockTask m : reduceTasks() | m.idle(); }
+
+    spec public boolean hasAssignableReduces() { return some MockTask m : reduceTasks() | m.assignable(); }
+
+    //spec public boolean hasAssignableTasks() { return !assignableTasks().isEmpty(); }
+ 
+    spec public boolean hasAssignableTask() { return hasUndoneMaps() ? hasAssignableMaps() : hasAssignableReduces(); }
+
+    spec boolean undone() { return this.status != MockTaskStatus.SUCCESS; }
+
+    spec public PBJInternSet<MockTask> runningTasks() { return getTasksOfStatus(MockTaskStatus.RUNNING); }
+
+    spec public PBJInternSet<MockTask> idleTasks() { return getTasksOfStatus(MockTaskStatus.IDLE); }
+
+    spec public PBJInternSet<MockTask> assignableTasks() { 
+	return { all MockTask task : tasks | task.assignable() };
+    }
+
+    spec public PBJInternSet<MockTask> assignableTasksOfType(MockTaskType type) { 
+	return { all MockTask task : getTasksOfType(type) | task.assignable() };
+    }
+
+    spec public PBJInternSet<MockTask> assignableMapTasks() { return assignableTasksOfType(MockTaskType.MAP); }
+
+    spec public PBJInternSet<MockTask> assignableReduceTasks() { return assignableTasksOfType(MockTaskType.REDUCE); }
+
+    spec public int numRunningTasks() { return runningTasks().size(); }
+
+    spec public int numIdleTasks() { return idleTasks().size(); }
+
+    spec public int numAssignableTasks() { return assignableTasks().size(); }
+
+    spec public int numAssignableMapOrReduceTasks() { 
+	return hasUndoneMaps() ? numAssignableMapTasks() : numAssignableReduceTasks();
+    }
+
+    spec public int numAssignableMapTasks() { return assignableMapTasks().size(); }
+
+    spec public int numAssignableReduceTasks() { return assignableReduceTasks().size(); }
+
+    spec public boolean containsFailure() {
+	return (some MockTask task : tasks | task.containsFailure());
+    } 
+
+    spec boolean valid() {
+	return hadoop != null
+	    && pool != null
+	    && validPriority()
+	    && pool.valid()
+	    && validStatus()
+	    && validTasks(tasks)
+	    ;
+    }
+
+    spec boolean validPriority() {
+	return priority != null
+	    ;
+    }
+
+    spec boolean validStatus() {
+	return status == MockTaskStatus.IDLE ==> allTasksHaveStatus(MockTaskStatus.IDLE)
+	    && status == MockTaskStatus.SUCCESS ==> allTasksHaveStatus(MockTaskStatus.SUCCESS)
+	    && status == MockTaskStatus.FAILED ==> someTasksHaveStatus(MockTaskStatus.FAILED)
+	    ;
+    }
+
+    spec boolean validTasks(MockTask[] tasks) {
+	int ss = tasks.length;
+	return
+	    mapTasks().size() > 0
+	    && reduceTasks().size() > 0
+	    && (all int i : 0 .. ss - 1 |
+		(tasks[i] != null
+		 && tasks[i].validTask(this)
+		 && all int j : 0 .. ss - 1 | (i == j || tasks[i] != tasks[j])))
+	    ;
+    }
+
+    spec boolean allTasksHaveStatus(MockTaskStatus status) {
+	return all MockTask task : tasks | task.status == status;
+    }
+
+    spec boolean someTasksHaveStatus(MockTaskStatus status) {
+	return some MockTask task : tasks | task.status == status;
+    }
+    
+    spec boolean uniqueIdAndTasks(MockJob j) {
+	return this.id != j.id 
+	    && true;
+    }
+
+    public MockJob init(int numMaps, int numReduces) {
+	System.out.println("requesting: " + numMaps + ", " + numReduces);
+	initH(numMaps, numReduces);
+	return this;
+    }
+
+    void initH(int numMaps, int numReduces) 
+	modifies fields MockTask:taskType, MockTask:status, MockTask: job
+	adds (numMaps + numReduces) MockTask
+	ensures valid()
+    {	
+    }
+
+
+    public void acceptTaskCompleted(MockTask t, MockTaskAttempt attempt) {
+	boolean done = false;
+// 	if (status == MockTaskStatus.IDLE)
+// 	    status = MockTaskStatus.RUNNING;
+	if (attempt.status == MockTaskStatus.SUCCESS) {
+	    if (allTasksHaveStatus(MockTaskStatus.SUCCESS)) {
+		status = MockTaskStatus.SUCCESS;
+		hadoop.acceptJobCompleted(this);
+	    }
+	} else {
+	}
+    }
+
+    public String toString() {
+	return "\n\b\tjob_" + id() + " : {\n\t\tpool: " + pool + "\n\t\tpriority: " + priority + " (" + priorityLevel() + ")" + "\n\t\tstatus: " + status + "\n\t\tmaps: " + mapTasks() + ",\n\t\treduces: " + reduceTasks() + "\n\t}";
+    }
+
+    public String mapTasksToJson() {
+	return scheduleToJson(true);
+    }
+
+    public String reduceTasksToJson() {
+	return scheduleToJson(false);
+    }
+
+    public String scheduleToJson(boolean isMap) {
+	String res = "";
+	Collection<MockTask> schedule;
+	if (isMap) {
+	    schedule = mapTasks();
+	} else {
+	    schedule = reduceTasks();
+	}
+	String addr = "";
+	for (MockTask task : schedule) {
+	    String attempts = "";
+	    String addr0 = "";
+	    for (MockTaskAttempt attempt : task.attempts) {
+		int nodeId = attempt.node.id;
+		int rackId = attempt.node.rack.id;  
+		attempts += addr0 + "{\n\t\"location\" : {\n\t\t\"layers\" : [ \"" + rackId +"\", \"" + rackId + "." + nodeId +"\" ]\n\t},\n\t\"hostName\" : \"/" + rackId + "/" + rackId + "." + nodeId + "\",\n\t\"result\" : \"" + attempt.status + "\",\n\t\"startTime\" : 1240336647215,\n\t\"finishTime\" : 1240336651127,\n\t\"shuffleFinished\" : -1,\n\t\"sortFinished\" : -1,\n\t\"attemptID\" : \"" + attempt.id() + "\",\n\t\"hdfsBytesRead\" : 53639,\n\t\"hdfsBytesWritten\" : -1,\n\t\"fileBytesRead\" : -1,\n\t\"fileBytesWritten\" : 37170,\n\t\"mapInputRecords\" : 3601,\n\t\"mapOutputBytes\" : 247925,\n\t\"mapOutputRecords\" : 26425,\n\t\"combineInputRecords\" : 26425,\n\t\"reduceInputGroups\" : -1,\n\t\"reduceInputRecords\" : -1,\n\t\"reduceShuffleBytes\" : -1,\n\t\"reduceOutputRecords\" : -1,\n\t\"spilledRecords\" : 5315,\n\t\"mapInputBytes\" : -1\n\t}";
+		addr0 = ", ";
+	    }
+	    res += addr + "{\n\t\"startTime\" : 1240336753705,\n\t\"attempts\" : [ " + attempts + " ],\n\t\"preferredLocations\" : null,\n\t\"finishTime\" : -1,\n\t\"inputBytes\" : -1,\n\t\"inputRecords\" : -1,\n\t\"outputBytes\" : -1,\n\t\"outputRecords\" : -1,\n\t\"taskID\" : \"" + task.id() + "\",\n\t\"numberMaps\" : -1,\n\t\"numberReduces\" : -1,\n\t\"taskStatus\" : \"" + task.status + "\",\n\t\"taskType\" : \"" + task.taskType + "\"\n\t}";
+	    addr = ", ";
+	}
+	return res;
+    }
+
+}
+

@@ -1,0 +1,41 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+class Person {
+    spec int age;
+}
+
+class DB {
+    spec PBJMap<Person,Integer> database;
+    spec int size() { return database.size(); }
+    spec int get() { return database.get(); }
+}
+
+public class Rapid1 {
+
+    public Rapid1() {
+	super();
+    }
+    
+    pure public int getSomeUserInput(int size) 
+	ensures result >= 1 && result <= size {
+	return 0; // code not available
+    }
+
+    pure public DB getSomeDatabase() 
+	ensures result.size > 0 {
+	return null; // code not available
+    }
+
+    public int rapidTest() {
+	DB db = getSomeDatabase(); //fallback to gen a random database
+	int user = getSomeUserInput(db.size()); //fallback to gen a valid user input
+	return db.get(user);
+    }
+
+    public static void main(String[] args) {	
+	Rapid1 t1 = new Rapid1();
+	System.out.println(t1.rapidTest());
+    }
+
+}

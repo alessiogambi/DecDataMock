@@ -1,0 +1,54 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.examples.primitives.PBJUtils;
+import pbnj.util.ArrayList;
+
+public class MockTaskScheduler_FIFO extends MockTaskScheduler ensures valid() {
+
+    public MockTaskScheduler_FIFO(MockHadoop hadoop) {
+	super(hadoop);
+	this.policyKind = MockTaskSchedulerKind.FIFO;
+
+    }
+
+    spec boolean valid() { return super.valid() && policyKind == MockTaskSchedulerKind.FIFO; }
+
+    spec boolean assignTasksSpec(MockJob job, ArrayList<MockTask> result) {
+	return super.assignTasksSpec(job, result)  
+	    && assignTasksSpec_FIFO(job, result);
+    }
+
+    spec boolean assignTasksSpec_FIFO(MockJob job, ArrayList<MockTask> result) {
+	return shouldAssignJob(job) ? 
+	    result.size() == PBJUtils.Min(job.numAssignableMapOrReduceTasks(), jobSlotShare(job)) :
+	    result.isEmpty();
+    }
+
+    spec int numAssignableTasksSpec(MockJob job) {
+	return shouldAssignJob(job) ? 
+	    PBJUtils.Min(job.numAssignableMapOrReduceTasks(), jobSlotShare(job)) : 0;
+    }
+    
+    spec int jobSlotShare(MockJob job) { return cluster.numIdleNodes(); }
+
+    spec boolean shouldAssignJob(MockJob job) {
+	int idx = jobIndex(job);
+	int jobPriorityLevel = job.priorityLevel();
+	return undoneJobsOfhigherPriority(job).isEmpty()
+	    && all int i: 0 .. (idx - 1) | 
+	    (!jobs[i].hasAssignableTask()
+	     || jobs[i].priorityLevel() < jobPriorityLevel)
+	    ;	    
+    }
+
+    spec PBJInternSet<MockJob> undoneJobsOfhigherPriority(MockJob job) {
+	int priorityLevel = job.priorityLevel();
+	return { all MockJob j : jobs | 
+		(j != job && j.undone() && j.priorityLevel() > priorityLevel) };
+    }
+
+    spec int jobIndex(MockJob job) { return { some int i: 0 .. jobs.length - 1 | jobs[i] == job }; }
+
+}

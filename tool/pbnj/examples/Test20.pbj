@@ -1,0 +1,35 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.util.ArrayList;
+
+public class Test20 {
+    
+    spec ArrayList<Integer[]> nums20;
+
+    public Test20() {
+	super();	
+	this.nums20 = new ArrayList<Integer[]>();
+    }
+    
+
+    public String toString() {
+	return " nums20=" + nums20;
+    }
+
+    public void m19() 
+	modifies fields ArrayList<Integer[]>:elementData, ArrayList<Integer[]>:size
+	ensures this.nums20.size() > 0 && this.nums20.get_spec(0).length == 1
+    {
+    }
+
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(3);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test20 t20 = new Test20();
+	System.out.println(t20);
+	t20.m19();
+	System.out.println(t20);
+    }
+
+}

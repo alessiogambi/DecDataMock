@@ -1,0 +1,30 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.*;
+import java.util.Arrays;
+
+public class MockNode {
+    spec public int id;
+    spec public MockNodeStatus status;
+    spec public MockRack rack;
+
+    static int idCtr = 0;
+
+    public MockNode(int id, MockRack rack) {
+	this.id = id;
+	this.rack = rack;
+	this.status = MockNodeStatus.IDLE;
+    }
+
+    public MockNode(MockRack rack) {
+	this(idCtr++, rack);
+    }
+
+    public String toString() {
+	return "Node" + id + ".Rack" + rack.id + " (@" + hashCode() + " " + status + ")";
+    }
+}
+
+
+

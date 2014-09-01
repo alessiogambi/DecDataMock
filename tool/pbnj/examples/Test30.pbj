@@ -1,0 +1,30 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+
+class Test30a { }
+
+public class Test30 {
+    
+    spec Test30a[][] xs;
+
+    //public Test30() { }
+
+    public String toString() {
+	return " xs=" + Arrays.deepToString(xs);
+    }
+
+    public void m29()
+	adds 1 Test30a
+	ensures this.xs != null && this.xs.length == 9 && this.xs[0] != null && this.xs[0].length == 5 && this.xs[0][0] != null {
+    }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(2);
+	LogMap.SolverOpt_IntBitWidth = 7;
+	Test30 t1 = new Test30();
+	System.out.println(t1);
+	t1.m29();
+	System.out.println(t1);
+    }
+
+}

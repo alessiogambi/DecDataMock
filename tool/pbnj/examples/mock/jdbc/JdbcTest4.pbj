@@ -1,0 +1,166 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import pbnj.examples.primitives.*;
+import pbnj.util.ArrayList;
+import java.util.HashSet;
+
+public class JdbcTest4
+//ensures this.types.unchanged_spec() && this.categories.unchanged_spec() && this.statuses.unchanged_spec()
+{
+
+    spec public Jdbc jdbc;
+
+    spec ArrayList<PBJString> categories;
+    spec ArrayList<PBJString> types;
+    spec ArrayList<PBJString> statuses;
+
+    public JdbcTest4(Jdbc jdbc) {
+        this.jdbc = jdbc;
+
+        this.categories = new ArrayList<PBJString>();
+        this.categories.add(PBJString.get("DRIVER"));
+        this.categories.add(PBJString.get("GAME"));
+        this.categories.add(PBJString.get("TUTORIALS"));
+        this.categories.add(PBJString.get("OS"));
+        this.categories.add(PBJString.get("APPS"));
+        this.categories.add(PBJString.get("MOVIE"));
+        this.categories.add(PBJString.get("BACKUPS"));
+
+        this.types = new ArrayList<PBJString>();
+        this.types.add(PBJString.get("CD"));
+        this.types.add(PBJString.get("DVD"));
+
+        this.statuses = new ArrayList<PBJString>();
+        this.statuses.add(PBJString.get("have"));
+        this.statuses.add(PBJString.get("out"));
+        this.statuses.add(PBJString.get("obsolete"));
+    }
+
+    spec public boolean init1Spec(PBJString dbId) {
+	return jdbc.databases().size() == 1 
+	    && jdbc.databaseExistsAndValid(dbId)
+	    ;
+    }
+
+    spec public boolean init2SpecH(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field2Id, PBJString field3Id, PBJString field4Id, PBJString field5Id, PBJString field6Id) {
+	    Database db = jdbc.databases().get_spec(dbId);
+        Table tb = db.tables().get_spec(tableId);
+        ArrayList<PBJString> fields = tb.fields();
+        return fields.size() == 6
+            && fields.get_spec(0) == field1Id
+            && fields.get_spec(1) == field2Id
+            && fields.get_spec(2) == field3Id
+            && fields.get_spec(3) == field4Id
+            && fields.get_spec(4) == field5Id
+            && fields.get_spec(5) == field6Id
+            ;
+    }
+
+    spec public boolean init2Spec(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field2Id, PBJString field3Id, PBJString field4Id, PBJString field5Id, PBJString field6Id) {
+        Database db = jdbc.databases().get_spec(dbId);
+        return init1Spec(dbId)
+            && db.tables().size() == 1
+            && db.tableExistsAndValid(tableId)
+            && init2SpecH(dbId, tableId, field1Id, field2Id, field3Id, field4Id, field5Id, field6Id)
+            ;
+    }
+
+    spec boolean validLiteralString(Literal l) {
+        return l != null && l.isString && l.stringValue != null; 
+    }
+
+    spec boolean validLiteralCategory(Literal l) {
+        return validLiteralString(l) && this.categories.contains_spec(l.stringValue);
+    }
+
+    spec boolean validLiteralFloat(Literal l) {
+        return l != null && l.isFloat && l.floatValue != null;
+    }
+
+    spec boolean validLiteralInt(Literal l) {
+        return l != null && l.isInt;// && l.intValue != null;
+    }
+
+    spec public boolean init3SpecH(PBJString dbId, PBJString tableId, PBJString field1Val, PBJString field2Val, PBJString field3Val, PBJString field4Val, PBJString field5Val, PBJString field6Val) {
+        Database db = jdbc.databases().get_spec(dbId);
+        Table tb = db.tables().get_spec(tableId);
+        ArrayList<Tuple> rows = tb.rows();
+        Tuple tp = rows.get_spec(0);
+        ArrayList<Literal> row1Fields = tp.value();
+        return rows.size() == 1
+            && tp != null 
+            && tp.value != null
+            && row1Fields.size() == tb.fields().size()	    
+            && (all int i : 0 .. row1Fields.size() - 1 | validLiteralString(row1Fields.get_spec(i)))
+            && row1Fields.get_spec(0).stringValue == field1Val
+            //&& row1Fields.get_spec(1).stringValue == field2Val
+            && validLiteralCategory(row1Fields.get_spec(1))
+            && row1Fields.get_spec(2).stringValue == field3Val
+            && row1Fields.get_spec(3).stringValue == field4Val
+            && row1Fields.get_spec(4).stringValue == field5Val
+            && row1Fields.get_spec(5).stringValue == field6Val
+            ;
+    }
+
+    spec public boolean init3Spec(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field1Val, PBJString field2Id, PBJString field2Val, PBJString field3Id, PBJString field3Val, PBJString field4Id, PBJString field4Val, PBJString field5Id, PBJString field5Val, PBJString field6Id, PBJString field6Val) {
+        return init2Spec(dbId, tableId, field1Id, field2Id, field3Id, field4Id, field5Id, field6Id) &&
+            init3SpecH(dbId, tableId, field1Val, field2Val, field3Val, field4Val, field5Val, field6Val);        
+    }
+
+    public void initDBWithoutTable(PBJString dbId) 
+        adds 1 Database, 1 PBJMap<PBJString,Table>
+        ensures init1Spec(dbId) {
+
+    }
+
+    public void initDBWithTable6Fields(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field2Id, PBJString field3Id, PBJString field4Id, PBJString field5Id, PBJString field6Id)
+        adds 1 Database, 1 PBJMap<PBJString, Table>, 1 Table, 1 ArrayList<Tuple>, 1 ArrayList<PBJString>
+        ensures init2Spec(dbId, tableId, field1Id, field2Id, field3Id, field4Id, field5Id, field6Id){
+    }
+
+    public void initDBWithTable6Fields1Row(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field2Id, PBJString field3Id, PBJString field4Id, PBJString field5Id, PBJString field6Id, PBJString field1Val, PBJString field2Val, PBJString field3Val, PBJString field4Val, PBJString field5Val, PBJString field6Val)
+	modifies objects initDBWithTable6Fields1RowModifies()
+        adds 1 Database, 1 PBJMap<PBJString, Table>, 1 Table, 1 ArrayList<Tuple>, 1 ArrayList<PBJString>, 1 Tuple, 1 ArrayList<Literal>, 6 Literal
+        ensures init3Spec(dbId, tableId, field1Id, field1Val, field2Id, field2Val, field3Id, field3Val, field4Id, field4Val, field5Id, field5Val, field6Id, field6Val) {
+    }
+
+    HashSet<Object> initDBWithTable6Fields1RowModifies() {
+    	HashSet<Object> res = new HashSet<Object>();
+	res.add(this.jdbc);
+	res.add(this.jdbc.databases);
+	return res;
+    }
+
+    public static void main(String[] args) {
+        //LogMap.SolverOpt_debugLevel(1);
+        LogMap.SolverOpt_IntBitWidth = 5;
+        Jdbc jdbc = new Jdbc();
+        JdbcTest4 b = new JdbcTest4(jdbc);
+        PBJString dbId = PBJString.get("diskdb");
+        PBJString tableId = PBJString.get("disktb");
+        PBJString field1Id = PBJString.get("one");
+        PBJString field2Id = PBJString.get("two");
+        PBJString field3Id = PBJString.get("three");
+        PBJString field4Id = PBJString.get("four");
+        PBJString field5Id = PBJString.get("five");
+        PBJString field6Id = PBJString.get("six");
+        PBJString field1Val = PBJString.get("oneone");
+        PBJString field2Val = PBJString.get("twotwo");
+        PBJString field3Val = PBJString.get("threethree");
+        PBJString field4Val = PBJString.get("fourfour");
+        PBJString field5Val = PBJString.get("fivefive");
+        PBJString field6Val = PBJString.get("sixsix");
+        System.out.println(jdbc);
+        //b.initDBWithoutTable(dbId);
+        //b.initDBWithTable2Fields(dbId, tableId, field1Id, field2Id);
+        //b.initDBWithTable6Fields(dbId, tableId, field1Id, field2Id, field3Id, field4Id, field5Id, field6Id);
+        b.initDBWithTable6Fields1Row(dbId, tableId, field1Id, field2Id, field3Id, field4Id, field5Id, field6Id, field1Val, field2Val, field3Val, field4Val, field5Val, field6Val);
+
+		System.out.println(b.categories);
+		System.out.println(b.statuses);
+		System.out.println(b.types);
+        System.out.println(jdbc);
+    }
+}
+
+ 

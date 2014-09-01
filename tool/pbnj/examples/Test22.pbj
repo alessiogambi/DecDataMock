@@ -1,0 +1,38 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+abstract class Test22Foo { }
+
+class Test22FooSub extends Test22Foo { }
+
+public class Test22 {
+    
+    spec int x;
+
+    public Test22() {
+	super();	
+    }
+    
+
+    public String toString() {
+	return "@" + this.hashCode() + " x=" + x;
+    }
+
+    pure public Test22Foo m21() 
+	adds 1 Test22FooSub
+	ensures result != null
+    {
+	return null;
+    }
+
+    
+    public static void main(String[] args) {	
+// 	LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test22 t22 = new Test22();
+	System.out.println(t22);
+	System.out.println(t22.m21());
+	System.out.println(t22);
+    }
+
+}

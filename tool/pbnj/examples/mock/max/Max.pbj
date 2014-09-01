@@ -1,0 +1,41 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.examples.primitives.*;
+
+public class Max {
+
+    spec MySet<Integer> bag;
+
+    public Max() {
+	super();
+	this.bag = new MySet<Integer>();
+    }
+    
+    spec boolean larger(int r) {
+	return all int i : this.bag.values_spec() | r >= i;
+    }
+
+    public pure int findMax() 
+	requires this.bag != null && this.bag.size() > 0
+        ensures this.bag.contains(result) && larger(result) {
+	int res = 0 / 0;
+	return res;
+    }
+    
+    public String toString() { 
+	return bag.toString();
+    }
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	LogMap.SolverOpt_NaturalIntsOnly = true;
+	Max b = new Max();
+	System.out.println(b);
+	for (int i = 0; i < 5; i++) 
+	    b.bag.add(i);
+	System.out.println(b);
+	System.out.println(b.findMax());
+	
+    }
+
+}

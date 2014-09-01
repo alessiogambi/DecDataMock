@@ -1,0 +1,28 @@
+
+public class ConcurID {
+
+    spec int val;
+
+    public int id(int i) ensures result == i && this.val == i {
+	val = i;
+	    // sleep so that another thread will be scheduled
+	try {
+	    Thread.currentThread().sleep(100);
+	} catch(Exception e) {}
+	return val;
+    }
+
+    public static void main(String[] args) {
+	final ConcurID c = new ConcurID();
+	Thread t = new Thread() {
+		public void run() {
+		    System.out.println(c.id(45));
+		    System.out.println("val is " + c.val);
+		}
+	    };
+	t.start();
+	System.out.println(c.id(34));
+	System.out.println("val is " + c.val);
+    }
+    
+}

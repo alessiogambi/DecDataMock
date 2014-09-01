@@ -1,0 +1,24 @@
+import polyglot.ext.pbnj.tologic.*;
+
+public class Test2 {
+    
+    spec int x;
+
+    public String toString() {
+	return "x=" + x;
+    }
+
+    public void m1()
+	ensures this.x == this.old.x + 1 {
+    }
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test2 t1 = new Test2();
+	System.out.println(t1);
+	t1.m1();
+	System.out.println(t1);
+    }
+
+}

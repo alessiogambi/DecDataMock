@@ -1,0 +1,39 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+abstract class Test9Foo {
+
+}
+
+class Test9Foo1 extends Test9Foo {
+
+}
+
+class Test9Foo2 extends Test9Foo {
+
+}
+
+public class Test9 {
+    
+    spec Test9Foo foo;
+
+    public String toString() {
+	return " foo=" + foo;
+    }
+
+    public void m8(Test9Foo1 f) 
+	ensures this.foo != null
+    {
+    }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test9 t1 = new Test9();
+	System.out.println(t1);
+	Test9Foo1 f = new Test9Foo1();
+	t1.m8(f);
+	System.out.println(t1);
+    }
+
+}

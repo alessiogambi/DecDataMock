@@ -1,0 +1,4 @@
+#!/bin/bash
+JAVA_LIB_CLASSES=$PBNJ_HOME/examples/classes
+CURRDIR=`pwd`
+java -cp $PBNJ_HOME/jar/pbnj.jar:$PBNJ_HOME/jar/polyglot.jar:$PBNJ_HOME/jar/jl5.jar:$PBNJ_HOME/jar/JFlex.jar:$PBNJ_HOME/jar/kodkod.jar:$JAVA_LIB_CLASSES:$CURRDIR:$PBNJ_CLASSPATH polyglot.main.Main -ext pbnj -assert $@

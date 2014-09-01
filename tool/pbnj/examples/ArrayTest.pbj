@@ -1,0 +1,65 @@
+public class ArrayTest {
+
+    spec int[] elems = { 4, 3 };
+
+    spec public boolean isSorted() {
+	return all int i : 0 .. this.elems.length - 2 | elems[i] <= elems[i+1];
+    }
+
+    spec public boolean isPermutation(int[] orig) {
+	int size = this.elems.length;
+	return size == orig.length && 
+	    all int i : 0 .. (size-1) | some int j : 0 .. (size-1) | orig[i] == elems[j];
+    }
+    
+    public void sort() 
+	modifies fields ArrayTest:elems
+	ensures 
+	isSorted() && isPermutation(this.old.elems) {
+    }
+
+    public int m() ensures result > 0 { return 0; }
+
+    pure public int max(int a, int b)
+	ensures (result == a || result == b) && result >= a && result >= b{
+	if (a < b)
+	    return a;
+	else
+	    return b;
+    }
+
+    spec public boolean member(int n, int[] arr) {
+	return some int i : 0 .. (arr.length-1) | arr[i] == n;
+    }
+
+    spec public boolean geq(int n, int[] arr) {
+	return all int i : 0 .. (arr.length - 1) | arr[i] <= n;
+    }
+
+    pure public int max(int[] arr) ensures member(result, arr) && geq(result, arr){
+	int res = 0;
+	for(int i = 0; i <= arr.length; i++) {
+	    if (arr[i] > res)
+		res = arr[i];
+	}
+	return res;
+    }
+
+    public String toString() {
+	String res = "[";
+ 	for (int i = 0; i < elems.length; i++)
+	    res += " " + elems[i];
+	return res + " ]";
+    }
+
+    public static void main(String[] args) {
+	//polyglot.ext.pbnj.tologic.LogMap.SolverOpt_debugLevel(1);
+	ArrayTest e = new ArrayTest();
+	System.out.println(e);
+// 	System.out.println(e.max(3, 4));
+// 	int[] arr = {3, 2, 1};
+// 	System.out.println(e.max(arr));
+	e.sort();
+	System.out.println(e);
+    }
+}

@@ -1,0 +1,36 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.util.ArrayList;
+
+abstract class Test25Foo { 
+    spec int x;
+}
+
+class Test25FooSub extends Test25Foo { 
+
+}
+
+public class Test25 {
+    
+    public Test25() {
+	super();	
+    }
+    
+    pure fresh public ArrayList<Test25Foo> m24() 
+	adds 1 Test25FooSub
+	ensures result != null && result.size() == 1 && result.get_spec(0) != null
+    {
+	return null;
+    }
+
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test25 t25 = new Test25();
+	System.out.println(t25);
+	System.out.println(t25.m24());
+	System.out.println(t25);
+    }
+
+}

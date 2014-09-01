@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="Scenario">
+	<test name="Scenario Robustness Test Suite">
+		<classes>
+			<class name="at.ac.testing.brooklyn.scenario.AutoScalerPolicyRobustnessTest" />
+			<class name="at.ac.testing.brooklyn.scenario.AutoScalerPolicyMetricRobustnessTest" />
+		</classes>
+	</test>
+</suite>  

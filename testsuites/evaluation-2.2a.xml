@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="ICSE 2015 - Evaluation 2.2 A" verbose="1"
+	annotations="JDK">
+	<!-- Test parameters: These parameters act only on the value of the test 
+		data, thus not on the timing of the test cases execution -->
+	<!-- http://www.tutorialspoint.com/testng/testng_parameterized_test.htm -->
+	<parameter name="lowerBound" value="10" />
+	<parameter name="upperBound" value="50" />
+	<parameter name="minSize" value="0" />
+	<parameter name="maxSize" value="10" />
+	<!-- Use 2000 so its 2 sec, so it admits at least 2 events. Later use the 
+		version with simultaneous events in the Schedule.pbj ! -->
+	<parameter name="minPeriodBetweenExecs" value="2000" />
+	<parameter name="resizeUpStabilizationDelay" value="6000" />
+	<parameter name="resizeDownStabilizationDelay" value="8000" />
+	<!-- <parameter name="actuationTime" value="2000" /> -->
+	<suite-files>
+		<suite-file path="testsuites/evaluation2.2/original.xml"></suite-file>
+		<!-- <suite-file path="testsuites/evaluation2.2/literal.xml"></suite-file> -->
+		<suite-file path="testsuites/evaluation2.2/equivalent.xml"></suite-file>
+		<suite-file path="testsuites/evaluation2.2/scenario.xml"></suite-file>
+		<!-- <suite-file path="testsuites/evaluation2.2/mixed.xml"></suite-file> -->
+	</suite-files>
+</suite>

@@ -1,0 +1,161 @@
+package mock.mapreduce.simulator;
+
+import polyglot.ext.pbnj.tologic.LogMap;
+import polyglot.ext.pbnj.primitives.*;
+import java.util.Arrays;
+
+enum MockNodeStatus { IDLE, BUSY }
+enum MockLoadStatus { LOW, HIGH }
+enum MockPoolTier { A, B, C }
+
+public class MockCluster 
+    ensures valid() {
+    spec public int numRacks;    
+    spec public int numNodes;
+    spec public MockRack[] racks;
+    spec public MockPool[] pools;
+    spec public MockLoadStatus load;
+
+    public MockCluster() {
+	this.load = MockLoadStatus.LOW;
+    }
+
+    public MockCluster(int numRacks, int numNodes, MockRack[] racks) {
+	this();
+	this.numRacks = numRacks;
+	this.numNodes = numNodes;
+	this.racks = racks;
+    }
+
+    public MockCluster(int numRacks, int numNodesPerRack) {
+	this(numRacks, numRacks * numNodesPerRack, new MockRack[numRacks]);
+	int numNodes = numRacks * numNodesPerRack;
+	MockNode[][] rackNodes = new MockNode[numRacks][];
+	int nodeCtr = 0;
+	for (int i = 0; i < numRacks; i++) {
+	    int ns = numNodesPerRack;
+	    MockNode[] rns = new MockNode[ns];
+	    MockRack cr = new MockRack(i, rns);
+	    racks[i] = cr;
+	    rackNodes[i] = rns;
+	    for (int j = 0; j < ns; j++)
+		rns[j] = new MockNode(nodeCtr++, cr);
+	}
+
+    }
+        
+    spec boolean valid() {
+	return numRacks == racks.length
+	    && validLoad()
+	    && validPools()
+	    && all MockRack r : racks | r.valid()
+	    ;
+    }
+
+    spec boolean validPools() {
+	int ps = pools.length - 1;
+	return all int i : 0 .. ps | 
+	    (pools[i] != null && pools[i].valid() &&
+	     all int j : 0 .. ps  | (i != j ==> pools[i].tier != pools[j].tier));
+
+    }
+
+    spec boolean validLoad() {
+	int lowLoadRacks = lowLoadRacks().size();	
+	return load == MockLoadStatus.LOW <==> lowLoadRacks > numRacks / 2
+	    && load == MockLoadStatus.HIGH <==> lowLoadRacks <= numRacks / 2
+	    ;
+    }
+
+    spec int numPools() { return pools.length; }
+
+    spec public PBJInternSet<MockNode> nodes() {
+	return { all MockNode n | (some MockRack r : racks | r.contains(n)) };
+    }
+
+    spec public PBJInternSet<MockNode> idleNodes() {
+	return { all MockNode n : nodes() | n.status == MockNodeStatus.IDLE };
+    }
+
+    spec public int numIdleNodes() { return idleNodes().size(); }
+
+    spec PBJInternSet<MockRack> lowLoadRacks() {
+	return { all MockRack r : racks | r.load == MockLoadStatus.LOW };
+    }
+
+    spec int remoteReadLatency(MockNode src, MockNode dst) {
+	return src == dst ? 0 : src.rack == dst.rack ? 50 : 500;
+    }
+
+    public MockCluster initPools(int numPools) {
+	initPoolsH(numPools);
+	return this;
+    }
+
+    void initPoolsH(int numPools)
+	modifies fields MockCluster:pools
+	adds numPools MockPool
+	ensures initPoolsSpec(numPools) {
+    }
+    
+    spec boolean initPoolsSpec(int numPools) {
+	return this.pools.length == numPools
+	    && initPoolsMinShares();
+    }
+
+    spec boolean initPoolsMinShares() {
+	return all MockPool p : pools | 
+	    (p.minShare > 0 
+	     && p.minShare <= 5 
+	     && all MockPool q : pools | (p != q ==> p.minShare != q.minShare));
+    }
+
+    public MockCluster init(int numPools, MockLoadStatus status) {
+	initH(numPools, status);
+	return this;
+    }
+
+    spec boolean initSpec(int numPools, MockLoadStatus status) {
+	return pools.length == numPools
+	    && load == status
+	    ;
+    }
+
+    void initH(int numPools, MockLoadStatus status) 
+	modifies fields MockCluster:pools, MockCluster:load, MockRack:load, MockNode:status
+	adds numPools MockPool
+	ensures initSpec(numPools, status) {
+    }
+
+    public String toString() {
+	return "Cloud (" + Arrays.toString(pools) + " pools, " + numRacks + " racks, " + numNodes + " nodes total, " + load + " load):\n" + 
+	Arrays.toString(racks);
+    }
+
+    public String toJson() {
+	String clusters = "";
+	String addr = "";
+	for (MockRack r : racks) {	    
+	    String nodes = "";
+	    String addr0 = "";
+	    for (MockNode n : r.nodes) {
+		String currNode = addr0 + "\n\t\t\t\t{\n\t\t\t\t\t\"name\" : \"" + r.id + "." + n.id + "\",\n\t\t\t\t\t\"children\" : null\n\t\t\t\t}";
+		nodes += currNode;
+		addr0 = ",";
+	    }
+	    String currRack = addr + "\n\t\t{\n\t\t\t\"name\" : \"" + r.id + "\",\n\t\t\t\"children\" : [ " + nodes + " ]\n\t\t}";
+	    clusters += currRack;
+	    addr = ",";
+	}
+	String res = "{\n\t\"name\" : \"<root>\",\n\t\"children\" : [ " + clusters + " ]\n}\n";
+	return res;
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;	
+	MockCluster c = new MockCluster(2, 8);
+	c.init(3, MockLoadStatus.LOW);
+	System.out.println(c);
+    }    
+}    

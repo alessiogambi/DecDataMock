@@ -1,0 +1,32 @@
+import polyglot.ext.pbnj.tologic.*;
+
+public class Test37 {
+    
+    spec int x;
+
+    public Test37() { 
+    }
+
+    public String toString() {
+	return " x=" + x;
+    }
+
+
+    public void foo() {
+	System.out.println(x);
+	assume this.x < 0;
+	System.out.println(x);
+	assume this.x < -10;
+	System.out.println(x);
+	assume this.x < -5;
+	System.out.println(x);
+    }
+
+    public static void main(String[] args) {	
+// 	LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	Test37 t1 = new Test37();
+	t1.foo();
+    }
+
+}

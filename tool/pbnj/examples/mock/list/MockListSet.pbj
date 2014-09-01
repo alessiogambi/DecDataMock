@@ -1,0 +1,60 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+
+class MockList<E> {
+    spec E[] elems;
+    spec int size;
+    public MockList() {
+	this.elems = (E[]) new Object[0];
+    }
+    spec int size() { return size; }
+
+    spec boolean containsSpec(boolean result, E o) {
+	return result <==> (some E e : this.elems | e == o);
+    }
+    
+    spec boolean addSpec(E o) {
+	return size == old.size + 1
+	    && elems[old.size] == o
+	    && all int i : 0 .. old.size - 1 | elems[i] == old.elems[i];
+    }
+
+    public String toString() {
+	String res = "[";
+	if (size > 0) {
+	    res += elems[0];
+	    for (int i = 1; i < size; i++)
+		res += ", " + elems[i];
+	}
+	return res + "]";
+    } 
+}
+
+public class MockListSet {
+
+    spec MockList<Integer> list;
+
+    pure boolean contains(int o) 
+	ensures this.list.containsSpec(result, o) {
+	return true;
+    }
+
+    void add(int o) 
+	modifies fields MockList<Integer>:elems, MockList<Integer>:size
+	ensures this.list.addSpec(o) {	
+    }
+
+    public MockListSet() {
+	this.list = new MockList<Integer>();
+    }
+
+    public static void main(String[] args) {
+	MockListSet s = new MockListSet();
+	System.out.println(s.list);
+	System.out.println(s.contains(0));
+	s.add(0);
+	System.out.println(s.list);
+	System.out.println(s.contains(0));
+	System.out.println(s.list);
+    }
+}

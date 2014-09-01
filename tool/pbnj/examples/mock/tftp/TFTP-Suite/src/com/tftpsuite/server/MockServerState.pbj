@@ -1,0 +1,12 @@
+package com.tftpsuite.server;
+
+public enum MockServerState {
+   LISTEN_NEW_CONNECTION,
+   OPENING_NEW_CONNECTION,
+   SENDING_DATA,
+   RECEIVING_ACK,
+   SENDING_ACK,
+   RECEIVING_DATA,
+   SENDING_ERROR,
+   SENDING_NONFATAL_ERROR
+}

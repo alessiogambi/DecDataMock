@@ -1,0 +1,280 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+import java.util.HashSet;
+import java.util.Random;
+
+class BSNode
+{
+    
+    spec public int nodeValue;
+    spec public BSNode leftNode;
+    spec public BSNode rightNode;
+
+    public BSNode(int nodeValue, BSNode leftNode, BSNode rightNode) {
+        this.nodeValue = nodeValue;
+        this.leftNode = leftNode;
+        this.rightNode = rightNode;
+    }
+
+    public void nodeValue(int v) { this.nodeValue = v; }
+    public void leftNode(BSNode l) { this.leftNode = l; }
+    public void rightNode(BSNode r) { this.rightNode = r; }
+
+    spec public PBJInternSet<BSNode> children() { return this.(leftNode+rightNode); }
+
+    spec public PBJInternSet<BSNode> descendants() { return this.^(leftNode+rightNode); }
+
+    spec public PBJInternSet<BSNode> leftNodeSubtree() { return this.leftNode.*(leftNode+rightNode); }
+
+    spec public PBJInternSet<BSNode> rightNodeSubtree() { return this.rightNode.*(leftNode+rightNode); }
+
+    // NOTE:
+    public boolean equals(Object n) { return n instanceof BSNode &&  nodeValue == ((BSNode)n).nodeValue; }
+    public int hashCode() { return nodeValue; }
+
+    public String toString() { 
+	return "Node(" + nodeValue + ")";
+    }
+
+}
+
+
+public class BSTree 
+    ensures isBinarySearchTree()
+{
+    
+    private static final int INDENT_STEP = 4;
+    private static final int SIZE = 10;
+    private static final boolean TEST_INSERT = true;
+    private static final boolean TEST_DELETE = false;
+    private static final boolean TEST_BALANCE = false;
+
+    spec public BSNode root;
+    
+    public BSTree() { root = null; }
+
+    public void root(BSNode r) { this.root = r; }
+
+    spec public PBJInternSet<BSNode> nodes() { return root.*(leftNode+rightNode); }
+
+    spec public PBJInternSet<Integer> nodeValues() { return this.nodes().>nodeValue; }
+
+    spec public boolean isAcyclic() { 
+	return no BSNode n : nodes() | n.descendants().contains(n);
+    }
+
+
+    spec public boolean isValidBinarySearch() {
+	return all BSNode n : nodes() | 
+	    ((n.leftNode == null  || all BSNode lc : n.leftNodeSubtree()  | lc.nodeValue < n.nodeValue) &&
+	     (n.rightNode == null || all BSNode rc : n.rightNodeSubtree() | rc.nodeValue > n.nodeValue));
+
+    }
+
+    spec public boolean isBinarySearchTree() {
+	return isAcyclic() && 
+	    isValidBinarySearch();
+    }
+
+    spec public int abs(int i) { return i < 0 ? -i : i; }
+
+    spec public boolean isBalanced() {
+	return all BSNode n : nodes() | 
+	    abs(n.leftNodeSubtree().size() - n.rightNodeSubtree().size()) <= 1;
+    }
+
+    public void rebalance()
+	modifies fields BSTree:root, BSNode:leftNode, BSNode:rightNode
+	ensures this.nodes().equals(this.old.nodes()) && isBalanced() {
+    }
+
+    public void insert(int nodeValue)
+	modifies fields BSTree:root, BSNode:leftNode, BSNode:rightNode
+	//modifies objects getNewNodeParentNodeToBe(nodeValue)
+	adds 1 BSNode	    
+	ensures nodeValues().equals(this.old.nodeValues().plus(nodeValue)) {
+	System.out.println("adding " + nodeValue);
+	if (TEST_INSERT)
+	    assert nodes().size() != SIZE - 1;
+
+        BSNode node = new BSNode(nodeValue, null, null);
+	if (root == null) {
+	    root = node;
+	} else {
+	    BSNode n = setChildAndGetParentNode(node);
+	}
+    }    
+
+    public void delete(int nodeValue)
+	modifies fields BSTree:root, BSNode:leftNode, BSNode:rightNode
+	modifies objects getParentNodeAndChildren(nodeValue)
+	ensures this.nodeValues().equals(this.old.nodeValues().minus(nodeValue)) {
+	// no implementation...
+    }
+
+    public HashSet<Object> getNewNodeParentNodeToBe(int nodeValue) {
+	HashSet<Object> res = new HashSet<Object>();
+	if (root == null) {
+	    res.add(this);
+	    return res;
+	}	    
+	BSNode n = root;
+	while (true) {
+	    int compResult = compareTo(nodeValue, n.nodeValue);
+	    if (compResult == 0) {
+		break;
+	    } else if (compResult < 0) {
+		if (n.leftNode == null) {		   
+		    break;
+		} else {
+		    n = n.leftNode;
+		}
+	    } else {
+		assert compResult > 0;
+		if (n.rightNode == null) {		    
+		    break;
+		} else {
+		    n = n.rightNode;
+		}
+	    }
+	}
+	res.add(n);
+	return res;
+    }
+
+    public HashSet<Object> getParentNodeAndChildren(int nodeValue) {
+	HashSet<Object> res = new HashSet<Object>();
+	BSNode node = lookupNode(nodeValue);
+	res.add(node);	
+	if (root == node)
+	    res.add(this);
+	else {
+	    //res.add(node.parentNode);
+	}
+	if (node.leftNode != null)
+	    res.add(node.leftNode);
+	if (node.rightNode != null)
+	    res.add(node.rightNode);
+	return res;
+    }
+
+    private BSNode lookupNode(int nodeValue) {
+        BSNode n = root;
+        while (n != null) {
+            int compResult = compareTo(nodeValue, n.nodeValue);
+            if (compResult == 0) {
+                return n;
+            } else if (compResult < 0) {
+                n = n.leftNode;
+            } else {
+                n = n.rightNode;
+            }
+        }
+        return n;
+    }
+
+    public BSNode setChildAndGetParentNode(BSNode insertedNode) {
+
+	BSNode n = root;
+	int nodeValue = insertedNode.nodeValue;
+	while (true) {
+	    int compResult = compareTo(nodeValue, n.nodeValue);
+	    if (compResult == 0) {
+		if (insertedNode != null) {
+		    n.nodeValue = nodeValue;
+		}
+		return n;
+	    } else if (compResult < 0) {
+		if (n.leftNode == null) {
+		    if (insertedNode != null) {
+			n.leftNode = insertedNode;
+		    }
+		    break;
+		} else {
+		    n = n.leftNode;
+		}
+	    } else {
+		assert compResult > 0;
+		if (n.rightNode == null) {
+		    if (insertedNode != null) {
+			n.rightNode = insertedNode;
+		    }
+		    break;
+		} else {
+		    n = n.rightNode;
+		}
+	    }
+	}
+	return n;
+    }
+
+
+    public void print() {
+        printHelper(root, 0);
+	System.out.println("---------------------------------------" + 
+			   (root == null ? 0 : nodes().size()) + " nodes");
+    }
+
+    private static void printHelper(BSNode n, int indent) {
+        if (n == null) {
+            System.out.println("<empty tree>");
+            return;
+        }
+        if (n.rightNode != null) {
+            printHelper(n.rightNode, indent + INDENT_STEP);
+        }
+        for (int i = 0; i < indent; i++)
+            System.out.print(" "); 
+            System.out.println(n.nodeValue);
+        if (n.leftNode != null) {
+            printHelper(n.leftNode, indent + INDENT_STEP);
+        }
+    }
+
+    public static int compareTo(int a, int b) { return a > b ? 1 : (a < b ? -1 : 0); }
+
+    public static void main(String[] args) {
+	boolean useAltSolver = args.length > 0;
+	if (useAltSolver)
+	    polyglot.ext.pbnj.tologic.LogMap.SolverOpt_SolverNum(Integer.parseInt(args[0]));
+	//LogMap.SolverOpt_debugLevel(1);
+        //polyglot.ext.pbnj.primitives.PBJInteger.setBitWidth(6);
+        //polyglot.ext.pbnj.primitives.PBJInteger.setBounds(0,SIZE-1);
+
+	Random rand = new Random(1111L);
+
+        BSTree t = new BSTree();
+
+	// create an array of the given size
+	int[] a = new int[SIZE];
+	  	
+	for (int i = 0 ; i < SIZE; ++i)
+	    a[i] = i;
+	
+
+	// randomly shuffle the elements in the array and 
+	// insert them in the tree	
+	// then remove all from top
+	for (int i = SIZE; i>0; --i) {
+	    int n = rand.nextInt(i);
+	    int temp = a[n];
+	    a[n] = a[i-1];
+	    t.insert(temp);
+	    if (i < 3)
+		t.print();
+	}
+	if (TEST_DELETE) {
+	    for (int i = SIZE - 1; i>=0; --i) {
+		t.delete(i);
+		t.print();
+		i = 0; 
+	    }
+	} else if (TEST_BALANCE) {
+	    t.rebalance();
+	    t.print();
+	}
+	
+    }
+}
+

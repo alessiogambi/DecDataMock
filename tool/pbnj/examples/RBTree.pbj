@@ -1,0 +1,603 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+import java.util.HashSet;
+import java.util.Random;
+
+enum Color { RED, BLACK }
+
+class RBNode
+{    
+
+    spec public int nodeValue;
+    spec public Color nodeColor;
+    spec public RBNode leftNode;
+    spec public RBNode rightNode;
+    spec public RBNode parentNode;
+
+    public RBNode(int nodeValue, RBNode leftNode, RBNode rightNode) {
+	this(nodeValue, Color.BLACK, leftNode, rightNode);
+    }
+
+    public RBNode(int nodeValue, Color nodeColor, RBNode leftNode, RBNode rightNode) {
+        this.nodeValue = nodeValue;
+        this.nodeColor = nodeColor;
+        this.leftNode = leftNode;
+        this.rightNode = rightNode;
+        if (leftNode != null) leftNode.parentNode = this;
+        if (rightNode != null) rightNode.parentNode = this;
+        this.parentNode = null;
+    }
+
+    public void nodeValue(int v) { this.nodeValue = v; }
+    public void nodeColor(Color c) { this.nodeColor = c; }
+    public void leftNode(RBNode l) { this.leftNode = l; }
+    public void rightNode(RBNode r) { this.rightNode = r; }
+    public void parentNode(RBNode p) { this.parentNode = p; }
+
+
+    spec public PBJInternSet<RBNode> children() { return this.(leftNode+rightNode); }
+
+    spec public PBJInternSet<RBNode> descendants() { return this.^(leftNode+rightNode); }
+
+    spec public PBJInternSet<RBNode> leftNodeSubtree() { return this.leftNode.*(leftNode+rightNode); }
+
+    spec public PBJInternSet<RBNode> rightNodeSubtree() { return this.rightNode.*(leftNode+rightNode); }
+
+    spec public PBJInternSet<RBNode> ancestors() { return this.^parentNode; }
+
+    spec public PBJInternSet<RBNode> thisAndAncestors() { return this.*parentNode; }
+
+    spec public PBJInternSet<RBNode> blackAncestors() { 
+	return { all RBNode n : thisAndAncestors() | n.nodeColor == Color.BLACK };
+    }
+
+    public RBNode grandparentNode() {
+        assert parentNode != null; // Not the root node
+        assert parentNode.parentNode != null; // Not child of root
+        return parentNode.parentNode;
+    }
+
+    public RBNode sibling() {
+        assert parentNode != null; // Root node has no sibling
+        if (this == parentNode.leftNode)
+            return parentNode.rightNode;
+        else
+            return parentNode.leftNode;
+    }
+
+    public RBNode uncle() {
+        assert parentNode != null; // Root node has no uncle
+        assert parentNode.parentNode != null; // Children of root have no uncle
+        return parentNode.sibling();
+    }
+
+    // NOTE:
+    public boolean equals(Object n) { return n instanceof RBNode &&  nodeValue == ((RBNode)n).nodeValue; }
+    public int hashCode() { return nodeValue; }
+
+    public String toString() { 
+	return (nodeColor == Color.RED ? "[R]" : "") + "Node(" + nodeValue + ")";
+    }
+
+}
+
+public class RBTree 
+    ensures isRBTree()
+{
+    private static final int INDENT_STEP = 4;
+    private static final int SIZE = 10;
+    private static final boolean TEST_INSERT = true;
+    private static final boolean TEST_DELETE = false; 
+
+    spec public RBNode root;
+
+    public RBTree() { root = null; }
+
+    public void root(RBNode r) { this.root = r; }
+ 
+    spec public PBJInternSet<RBNode> nodes() { return root.*(leftNode+rightNode); }
+
+    spec public PBJInternSet<RBNode> leaves() { 
+	return { all RBNode n : nodes() | (n.leftNode == null || n.rightNode == null) };  
+    }
+
+    spec public PBJInternSet<Integer> nodeNodeValues() { return this.nodes().>nodeValue; }
+
+    spec public boolean isRBTree() {
+	return redsChildren() && eqBlacks() && rootBlack() && isBinarySearchTree();
+    }
+
+    spec public boolean isBinarySearchTree() {
+	return isValidBinarySearch() && parentNodeDef() && isAcyclic();
+    }
+
+    spec public boolean rootBlack() { 
+	return this.root == null || this.root.nodeColor == Color.BLACK;
+    }
+
+    spec public boolean redsChildren() {
+	return all RBNode n : nodes() | 
+	    (n.nodeColor == Color.BLACK || 
+	     all RBNode c : n.children() | c.nodeColor == Color.BLACK);
+    }
+
+    spec public boolean eqBlacks() {
+	return all RBNode l1 : leaves() | 
+	    all RBNode l2: leaves() |
+	    (l1 == l2 || l1.blackAncestors().size() == l2.blackAncestors().size());
+    }
+
+    spec public boolean isAcyclic() { 
+	return no RBNode n : nodes() | n.descendants().contains(n);
+    }
+
+    spec public boolean parentNodeDef() {
+	return all RBNode n : nodes() | all RBNode p : nodes() |
+	    (((!p.children().contains(n) || n.parentNode == p)) &&
+	     (n.parentNode != p || p.children().contains(n)));
+    }
+
+    spec public boolean isValidBinarySearch() {
+       return all RBNode n : nodes() | 
+	   ((n.leftNode == null  || all RBNode lc : n.leftNodeSubtree()  | lc.nodeValue < n.nodeValue) &&
+	    (n.rightNode == null || all RBNode rc : n.rightNodeSubtree() | rc.nodeValue > n.nodeValue));
+    }
+
+    public void insert(int nodeValue) 
+	modifies fields RBTree:root, RBNode:nodeColor, RBNode:leftNode, RBNode:rightNode, RBNode:parentNode
+	modifies objects getAffectedNodesOnInsert(nodeValue)
+	adds 1 RBNode
+	ensures this.nodeNodeValues().equals(this.old.nodeNodeValues().plus(nodeValue)) {
+
+	System.out.println("adding " + nodeValue); 
+
+	if (TEST_INSERT)
+	    assert nodes().size() != SIZE - 1;
+
+	
+        RBNode insertedNode = new RBNode(nodeValue, Color.RED, null, null);
+
+	if (root == null) {
+	    root = insertedNode;
+	} else {
+	    RBNode n = getNewNodeParentNode(insertedNode);		
+	    insertedNode.parentNode = n;
+	}
+	insertCase1(insertedNode);
+    }    
+
+    public void delete(int nodeValue)
+	modifies fields RBTree:root, RBNode:nodeColor, RBNode:leftNode, RBNode:rightNode, RBNode:parentNode
+    //modifies objects getAffectedNodesOnDelete(nodeValue)
+	ensures this.nodeNodeValues().equals(this.old.nodeNodeValues().minus(nodeValue)) {
+	// no implementation...
+	System.out.println("deleting: " + nodeValue);
+    } 
+
+    private static Color nodeColor(RBNode n) {
+        return n == null ? Color.BLACK : n.nodeColor;
+    }
+
+    private HashSet<Object> getAffectedNodesOnInsert(int nodeValue) { 
+	HashSet<Object> res = new HashSet<Object>();
+	if (root != null) {
+	    RBNode node = new RBNode(nodeValue, Color.RED, null, null); //FIXME
+	    RBNode n = getNewNodeParentNodeToBe(nodeValue);
+	    node.parentNode = n;
+	    res.add(n);
+	    getAffectedNodesOnInsert1(node, res);
+	} else {
+	    res.add(this);	    
+	}
+	return res;
+    }
+
+    private HashSet<Object> getAffectedNodesOnDelete(int nodeValue) {
+	HashSet<Object> res = new HashSet<Object>();
+	RBNode node = lookupNode(nodeValue);
+	res.add(node);
+	if (node.parentNode != null)
+	    res.add(node.parentNode);
+        if (node.leftNode != null && node.rightNode != null) {
+            // Copy key/nodeValue from predecessor and then delete it instead
+            RBNode pred = maximumNode(node.leftNode);
+            node.nodeValue = pred.nodeValue;
+            node = pred;
+	    res.add(pred);
+        }
+
+        assert node.leftNode == null || node.rightNode == null;
+        RBNode child = (node.rightNode == null) ? node.leftNode : node.rightNode;
+        if (nodeColor(node) == Color.BLACK) {
+            node.nodeColor = nodeColor(child);
+	    getAffectedNodesOnDelete1(node, res);
+        }
+
+	return res;
+    }
+
+    private RBNode lookupNode(int nodeValue) {
+        RBNode n = root;
+        while (n != null) {
+            int compResult = compareTo(nodeValue, n.nodeValue);
+            if (compResult == 0) {
+                return n;
+            } else if (compResult < 0) {
+                n = n.leftNode;
+            } else {
+                n = n.rightNode;
+            }
+        }
+        return n;
+    }
+
+    public String toString() {
+	String res = "";
+        res += printHelper(root, 0);
+	res += ("---------------------------------------" + 
+		(root == null ? 0 : nodes().size()) + " nodes");
+	return res + "\n";
+    }
+
+    private String printHelper(RBNode n, int indent) {
+	String res = "";
+        if (n == null) {
+            res += "<empty tree>\n";
+            return res;
+        }
+        if (n.rightNode != null) {
+            res += printHelper(n.rightNode, indent + INDENT_STEP);
+        }
+        for (int i = 0; i < indent; i++)
+            res += " "; 
+        if (n.nodeColor == Color.BLACK)
+            res += (n.nodeValue + "\n");
+        else
+            res += ("R" + n.nodeValue + "\n");
+        if (n.leftNode != null) {
+            res += printHelper(n.leftNode, indent + INDENT_STEP);
+        }
+	return res;
+    }
+
+////
+
+    public RBNode getNewNodeParentNode(RBNode insertedNode) {
+
+	RBNode n = root;
+	int nodeValue = insertedNode.nodeValue;
+	while (true) {
+	    int compResult = compareTo(nodeValue, n.nodeValue);
+	    if (compResult == 0) {
+		if (insertedNode != null) {
+		    n.nodeValue = nodeValue;
+		}
+		return n;
+	    } else if (compResult < 0) {
+		if (n.leftNode == null) {
+		    if (insertedNode != null) {
+			n.leftNode = insertedNode;
+		    }
+		    break;
+		} else {
+		    n = n.leftNode;
+		}
+	    } else {
+		assert compResult > 0;
+		if (n.rightNode == null) {
+		    if (insertedNode != null) {
+			n.rightNode = insertedNode;
+		    }
+		    break;
+		} else {
+		    n = n.rightNode;
+		}
+	    }
+	}
+	return n;
+    }
+
+    public RBNode getNewNodeParentNodeToBe(int nodeValue) {
+
+	RBNode n = root;
+	while (true) {
+	    int compResult = compareTo(nodeValue, n.nodeValue);
+	    if (compResult == 0) {
+		return n;
+	    } else if (compResult < 0) {
+		if (n.leftNode == null) {
+		    break;
+		} else {
+		    n = n.leftNode;
+		}
+	    } else {
+		assert compResult > 0;
+		if (n.rightNode == null) {
+		    break;
+		} else {
+		    n = n.rightNode;
+		}
+	    }
+	}
+	return n;
+    }
+
+
+
+    private void insertCase1(RBNode n) {
+        if (n.parentNode == null)
+            n.nodeColor = Color.BLACK;
+        else
+            insertCase2(n);
+    }
+
+    private void insertCase2(RBNode n) {
+        if (nodeColor(n.parentNode) == Color.BLACK)
+            return; // Tree is still valid
+        else
+            insertCase3(n);
+    }
+
+    void insertCase3(RBNode n) {
+        if (nodeColor(n.uncle()) == Color.RED) {
+            n.parentNode.nodeColor = Color.BLACK;
+            n.uncle().nodeColor = Color.BLACK;
+            n.grandparentNode().nodeColor = Color.RED;
+            insertCase1(n.grandparentNode());
+        } else {
+            insertCase4(n);
+        }
+    }
+
+    void insertCase4(RBNode n) {
+        if (n == n.parentNode.rightNode && n.parentNode == n.grandparentNode().leftNode) {
+            rotateLeftNode(n.parentNode);
+            n = n.leftNode;
+        } else if (n == n.parentNode.leftNode && n.parentNode == n.grandparentNode().rightNode) {
+            rotateRightNode(n.parentNode);
+            n = n.rightNode;
+        }
+        insertCase5(n);
+    }
+
+    void insertCase5(RBNode n) {
+        n.parentNode.nodeColor = Color.BLACK;
+        n.grandparentNode().nodeColor = Color.RED;
+        if (n == n.parentNode.leftNode && n.parentNode == n.grandparentNode().leftNode) {
+            rotateRightNode(n.grandparentNode());
+        } else {
+            assert n == n.parentNode.rightNode && n.parentNode == n.grandparentNode().rightNode;
+            rotateLeftNode(n.grandparentNode());
+        }
+    }
+
+    private void rotateLeftNode(RBNode n) {
+        RBNode r = n.rightNode;
+        replaceNode(n, r);
+        n.rightNode = r.leftNode;
+        if (r.leftNode != null) {
+            r.leftNode.parentNode = n;
+        }
+        r.leftNode = n;
+        n.parentNode = r;
+    }
+
+    private void rotateRightNode(RBNode n) {
+        RBNode l = n.leftNode;
+        replaceNode(n, l);
+        n.leftNode = l.rightNode;
+        if (l.rightNode != null) {
+            l.rightNode.parentNode = n;
+        }
+        l.rightNode = n;
+        n.parentNode = l;
+    }
+
+    private void replaceNode(RBNode oldn, RBNode newn) {
+        if (oldn.parentNode == null) {
+            root = newn;
+        } else {
+            if (oldn == oldn.parentNode.leftNode)
+                oldn.parentNode.leftNode = newn;
+            else
+                oldn.parentNode.rightNode = newn;
+        }
+        if (newn != null) {
+            newn.parentNode = oldn.parentNode;
+        }
+    }
+
+    private static  RBNode maximumNode(RBNode n) {
+        assert n != null;
+        while (n.rightNode != null) {
+            n = n.rightNode;
+        }
+        return n;
+    }
+
+    private void getAffectedNodesOnInsert1(RBNode n, HashSet<Object> res) {
+        if (n != root)
+            getAffectedNodesOnInsert2(n, res);
+    }
+
+    private void getAffectedNodesOnInsert2(RBNode n, HashSet<Object> res) {
+        if (nodeColor(n.parentNode) == Color.BLACK)
+            return; // Tree is still valid
+        else
+            getAffectedNodesOnInsert3(n, res);
+    }
+
+    void getAffectedNodesOnInsert3(RBNode n, HashSet<Object> res) {
+        if (nodeColor(n.uncle()) == Color.RED) {
+	    res.add(n.parentNode);
+	    res.add(n.uncle());
+	    res.add(n.grandparentNode());
+            getAffectedNodesOnInsert1(n.grandparentNode(), res);
+        } else {
+            getAffectedNodesOnInsert4(n, res);
+        }
+    }
+
+    void getAffectedNodesOnInsert4(RBNode n, HashSet<Object> res) {
+	if (n.parentNode != null) 
+	    res.add(n.parentNode);
+	if (n.grandparentNode() != null) 
+	    res.add(n.grandparentNode());
+	if (n.parentNode.grandparentNode() != null) 
+	    res.add(n.parentNode.grandparentNode());
+
+        if (n == n.parentNode.rightNode && n.parentNode == n.grandparentNode().leftNode) {
+	    res.add(n.parentNode.leftNode);
+	    if (n.leftNode != null) 
+		res.add(n.leftNode);
+	    if (n.rightNode != null) 
+		res.add(n.rightNode);
+        } else if (n == n.parentNode.leftNode && n.parentNode == n.grandparentNode().rightNode) {
+	    res.add(n.parentNode.rightNode);
+	    if (n.leftNode != null) 
+		res.add(n.leftNode);
+	    if (n.rightNode != null) 
+		res.add(n.rightNode);
+        }
+
+    }
+
+    private void getAffectedNodesOnDelete1(RBNode n, HashSet<Object> res) {
+        if (n.parentNode == null)
+            return;
+        else
+            getAffectedNodesOnDelete2(n, res);
+    }
+
+    private void getAffectedNodesOnDelete2(RBNode n, HashSet<Object> res) {
+        if (nodeColor(n.sibling()) == Color.RED) {
+	    res.add(n.parentNode);
+	    res.add(n.sibling());
+            n.parentNode.nodeColor = Color.RED;
+            n.sibling().nodeColor = Color.BLACK;
+	    res.add(n.leftNode);
+	    res.add(n.rightNode);
+
+            if (n == n.parentNode.leftNode)
+		res.add(n.parentNode.leftNode);
+            else
+		res.add(n.parentNode.rightNode);
+        }
+        getAffectedNodesOnDelete3(n, res);
+    }
+
+    private void getAffectedNodesOnDelete3(RBNode n, HashSet<Object> res) {
+        if (nodeColor(n.parentNode) == Color.BLACK &&
+            nodeColor(n.sibling()) == Color.BLACK &&
+            nodeColor(n.sibling().leftNode) == Color.BLACK &&
+            nodeColor(n.sibling().rightNode) == Color.BLACK)
+        {
+	    res.add(n.sibling());
+            getAffectedNodesOnDelete1(n.parentNode, res);
+        }
+        else
+            getAffectedNodesOnDelete4(n, res);
+    }
+
+    private void getAffectedNodesOnDelete4(RBNode n, HashSet<Object> res) {
+        if (nodeColor(n.parentNode) == Color.RED &&
+            nodeColor(n.sibling()) == Color.BLACK &&
+            nodeColor(n.sibling().leftNode) == Color.BLACK &&
+            nodeColor(n.sibling().rightNode) == Color.BLACK)
+        {
+	    res.add(n.sibling());
+	    res.add(n.parentNode);
+        }
+        else
+            getAffectedNodesOnDelete5(n, res);
+    }
+
+    private void getAffectedNodesOnDelete5(RBNode n, HashSet<Object> res) {
+        if (n == n.parentNode.leftNode &&
+            nodeColor(n.sibling()) == Color.BLACK &&
+            nodeColor(n.sibling().leftNode) == Color.RED &&
+            nodeColor(n.sibling().rightNode) == Color.BLACK)
+        {
+	    res.add(n.sibling());
+	    res.add(n.sibling().leftNode);
+	    res.add(n.sibling().rightNode);
+	    res.add(n.sibling().parentNode.rightNode);
+        }
+        else if (n == n.parentNode.rightNode &&
+                 nodeColor(n.sibling()) == Color.BLACK &&
+                 nodeColor(n.sibling().rightNode) == Color.RED &&
+                 nodeColor(n.sibling().leftNode) == Color.BLACK)
+        {
+	    res.add(n.sibling());
+	    res.add(n.sibling().leftNode);
+	    res.add(n.sibling().rightNode);
+	    res.add(n.sibling().parentNode.leftNode);
+        }
+        getAffectedNodesOnDelete6(n, res);
+    }
+
+    private void getAffectedNodesOnDelete6(RBNode n, HashSet<Object> res) {
+	res.add(n.sibling());
+	res.add(n.parentNode);
+        if (n == n.parentNode.leftNode) {
+            assert nodeColor(n.sibling().rightNode) == Color.RED;
+	    res.add(n.sibling().rightNode);
+	    res.add(n.parentNode.leftNode);
+	    res.add(n.parentNode.rightNode);
+	    res.add(n.parentNode.parentNode.leftNode);
+        }
+        else
+        {
+            assert nodeColor(n.sibling().leftNode) == Color.RED;
+	    res.add(n.sibling().leftNode);
+	    res.add(n.parentNode.leftNode);
+	    res.add(n.parentNode.rightNode);
+	    res.add(n.parentNode.parentNode);
+	    res.add(n.parentNode.parentNode.rightNode);
+
+        }
+    }
+
+    public static int compareTo(int a, int b) { return a > b ? 1 : (a < b ? -1 : 0); }
+
+    public static void main(String[] args) {
+	boolean useAltSolver = args.length > 0;
+	if (useAltSolver)
+	    polyglot.ext.pbnj.tologic.LogMap.SolverOpt_SolverNum(Integer.parseInt(args[0]));
+	//LogMap.SolverOpt_debugLevel(1);
+	//LogMap.SolverOpt_IntBitWidth = 5;
+
+	Random rand = new Random(1111L);
+
+        RBTree t = new RBTree();
+
+	// create an array of the given size
+	int[] a = new int[SIZE];
+	  	
+	for (int i = 0 ; i < SIZE; ++i)
+	    a[i] = i;
+
+	// randomly shuffle the elements in the array and 
+	// insert them in the tree	
+	// then remove all from top
+	for (int i = SIZE; i>0; --i) {
+	    int n = rand.nextInt(i);
+	    int temp = a[n];
+	    a[n] = a[i-1];
+	    t.insert(temp);
+	    if (i < 3)
+		System.out.println(t);
+	}
+	if (TEST_DELETE) {
+	    for (int i = SIZE - 1; i>=0; --i) {
+		t.delete(i);
+		System.out.println(t);
+		i = 0;
+	    }
+	}
+
+    }
+    
+}
+

@@ -1,0 +1,33 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+import pbnj.util.Arrays;
+
+public class Test21 {
+    
+    spec Byte[] nums;
+
+    public Test21() {
+	super();	
+    }
+    
+
+    public String toString() {
+	return " nums=" + Arrays.toString(nums);
+    }
+
+    public void m20() 
+	ensures this.nums != null && this.nums.length > 0 && this.nums[0] == 1
+    {
+    }
+
+    
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 6;
+	Test21 t21 = new Test21();
+	System.out.println(t21);
+	t21.m20();
+	System.out.println(t21);
+    }
+
+}

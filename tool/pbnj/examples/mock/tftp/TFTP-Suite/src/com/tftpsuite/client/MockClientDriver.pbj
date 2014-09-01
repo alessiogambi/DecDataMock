@@ -1,0 +1,45 @@
+package com.tftpsuite.client;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+import com.tftpsuite.net.MockNet;
+
+public class MockClientDriver {
+   private static String USAGE_STRING =
+         "Usage: <executable> <hostname> <filename> <r|w>";
+
+   public static void main(String[] args) {
+      if (args.length != 3) {
+         System.err.println(USAGE_STRING);
+         return;
+      }
+      String filename = args[1];
+      String actionString = args[2];
+      Action action;
+      
+      if (actionString.equals("r")) {
+         action = Action.READ;
+      }
+      else if (actionString.equals("w")) {   
+         action = Action.WRITE;
+      }            
+      else {
+         System.err.println("Invalid action specification: " + actionString);
+         System.err.println(USAGE_STRING);
+         return;
+      }
+      
+      TFTPClient client = new TFTPClient(filename, action, new MockNet());
+      try {
+         client.act();
+      }
+      catch (FileNotFoundException e) {
+         e.printStackTrace();
+      }
+      catch (IOException e) {
+         e.printStackTrace();
+      }
+   }
+
+}

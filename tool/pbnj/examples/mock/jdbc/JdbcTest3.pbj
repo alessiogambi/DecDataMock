@@ -1,0 +1,115 @@
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+import java.util.HashMap;
+import pbnj.util.ArrayList;
+import pbnj.examples.primitives.*;
+
+public class JdbcTest3 {
+    spec public Jdbc jdbc;
+
+    public JdbcTest3(Jdbc jdbc) { this.jdbc = jdbc; }
+
+    spec public boolean init1Spec(PBJString dbId) {
+        return jdbc.databases().size() == 1
+            && jdbc.databaseExistsAndValid(dbId)
+            ;
+    }
+    
+    spec public boolean init2SpecH(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field2Id) {
+        Database db = jdbc.databases().get_spec(dbId);
+        Table tb = db.tables().get_spec(tableId);
+        ArrayList<PBJString> fields = tb.fields();
+        return
+	    fields.size() == 2
+            && fields.get_spec(0) == field1Id
+            && fields.get_spec(1) == field2Id
+            ;
+    }
+
+    spec public boolean init2Spec(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field2Id) {
+        Database db = jdbc.databases().get_spec(dbId);
+        return init1Spec(dbId)
+            && db.tables().size() == 1
+            && db.tableExistsAndValid(tableId)
+	    && init2SpecH(dbId, tableId, field1Id, field2Id);
+    }
+
+    spec boolean validLiteral(Literal l) {
+	return l != null && l.isString && l.stringValue != null; 
+    }
+
+    spec public boolean init3SpecH(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field1Val, PBJString field2Id, PBJString field2Val) {
+        Database db = jdbc.databases().get_spec(dbId);
+        Table tb = db.tables().get_spec(tableId);
+        ArrayList<Tuple> rows = tb.rows();
+	Tuple tp = rows.get_spec(0);
+        ArrayList<Literal> row1Fields = tp.value();
+        return 
+            rows.size() == 1
+	    && tp != null 
+	    && tp.value != null
+            && row1Fields.size() == tb.fields().size()	    
+	    && all int i : 0 .. row1Fields.size() - 1 | validLiteral(row1Fields.get_spec(i))
+	    && row1Fields.get_spec(0).stringValue == field1Val
+            && row1Fields.get_spec(1).stringValue == field2Val
+            ;
+    }
+
+    spec public boolean init3Spec(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field1Val, PBJString field2Id, PBJString field2Val) {
+	return init2Spec(dbId, tableId, field1Id, field2Id) &&
+	    init3SpecH(dbId, tableId, field1Id, field1Val, field2Id, field2Val);        
+    }
+
+    public void initDBWithTable2Fields1Row(PBJString dbId, PBJString tableId, PBJString field1Id, PBJString field1Val, PBJString field2Id, PBJString field2Val)
+        adds 1 Database, 1 PBJMap<PBJString, Table>, 1 Table, 1 ArrayList<Tuple>, 1 ArrayList<PBJString>, 1 Tuple, 1 ArrayList<Literal>, 2 Literal
+        ensures init3Spec(dbId, tableId, field1Id, field1Val, field2Id, field2Val)
+    //init2Spec(dbId, tableId, field1Id, field2Id) 
+    {
+    }
+
+    public void prepareDatabase(Jdbc db) 
+    {
+	System.out.println(db.execute("create database foo"));
+	System.out.println(db.execute("connect foo"));
+	System.out.println(db.execute("create table people ( id, name, razk )"));
+	System.out.println(db.execute("insert into people values ( 10, 'jo', 1.20 )"));
+	System.out.println(db.execute("insert into people values ( 11, 'mo', 3.50 )"));
+	System.out.println(db.execute("close database"));
+	System.out.println(db);
+    }
+
+    public void getStockValues(Jdbc db) 
+    {
+	System.out.println(db.execute("connect foo"));
+	System.out.println(db.execute("select * from people"));
+	System.out.println(db.queryResult());
+	System.out.println(db.execute("select * from people where name = 'mo'"));
+	System.out.println(db.queryResult());
+	System.out.println(db.execute("select * from people where razk = 3.50"));
+	System.out.println(db.queryResult());
+	System.out.println(db.execute("close database"));
+    }
+
+    public static void main(String[] args) {
+	//LogMap.SolverOpt_debugLevel(1);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	/*LogMap.SolverOpt_NaturalIntsOnly = true;
+	JdbcTest3 b = new JdbcTest3();
+	Jdbc db = new Jdbc();
+	b.prepareDatabase(db);
+	b.getStockValues(db);*/
+        Jdbc jdbc = new Jdbc();
+        JdbcTest3 b = new JdbcTest3(jdbc);
+        PBJString dbId = PBJString.get("diskdb");
+        PBJString tableId = PBJString.get("disktb");
+        PBJString field1Id = PBJString.get("one");
+        PBJString field2Id = PBJString.get("two");
+        PBJString field1Val = PBJString.get("hello");
+        PBJString field2Val = PBJString.get("hi");
+
+        System.out.println(jdbc);
+        b.initDBWithTable2Fields1Row(dbId, tableId, field1Id, field1Val, field2Id, field2Val);
+        System.out.println(jdbc);
+    }
+}
+

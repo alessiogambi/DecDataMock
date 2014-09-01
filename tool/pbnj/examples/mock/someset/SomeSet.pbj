@@ -1,0 +1,27 @@
+import polyglot.ext.pbnj.primitives.*;
+import polyglot.ext.pbnj.tologic.*;
+
+public class SomeSet {
+
+    spec private RBTree elements;
+
+    public SomeSet() {
+	super();
+	this.elements = new RBTree();
+    }
+
+    public void add(int v) { elements.insert(v); }
+    public void remove(int v) { elements.delete(v); }
+    public String toString() {  return elements.nodes().toString(); }
+
+    public static void main(String[] args) {	
+	SomeSet b = new SomeSet();
+	System.out.println(b);
+	for (int i = 0; i < 5; i++) 
+	    b.add(i);	
+	System.out.println(b);
+	b.remove(3);
+	System.out.println(b);
+    }
+
+}

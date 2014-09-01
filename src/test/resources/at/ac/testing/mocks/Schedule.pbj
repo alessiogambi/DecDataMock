@@ -1,0 +1,318 @@
+package at.ac.testing.mocks;
+
+import polyglot.ext.pbnj.tologic.*;
+import polyglot.ext.pbnj.primitives.*;
+
+import org.testng.SkipException;
+
+import pbnj.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * A Basic Schedule is a sequence of TimedActions that all together form an abstract Elastic Testing Scenario
+ */
+public class Schedule { 
+
+	// Basic Spec Objects
+	spec public int size = -1;
+	spec public TimedAction[] actions = null;
+	
+	// Use in spite of the Pool object at the moment
+	spec public int minStateSize = -1;
+	spec public int maxStateSize = -1;
+	
+	
+	// Utility objects 
+	spec public TimedAction[] inputActions = null;
+	
+	// Start State and Time
+	
+	
+	// The schedule time always starts from at time 0
+	// But we can force a specific time for the first action
+	spec public int firstActionAt = -1;
+	
+	// The starting state of the schedule
+	spec public int startFrom	= -1;
+		
+	// End State and Time
+	
+	// The schedule ends at duration
+	spec int duration = -1;
+	
+	// The minimum duration of this schedule
+	spec int minDuration = -1;
+	
+	// The ending state of the schedule	
+	spec int endState = -1;
+
+
+
+
+	public void init() {
+		init( new TimedAction[]{} );
+	}
+
+	void validSizeH(int targetActionsLength)
+		modifies fields Schedule:size
+		ensures
+			this.size >= targetActionsLength
+			&&
+			this.size > 0
+			&&
+			this.size < 5 // XXX FIXED 
+	{	}
+	
+	public void init(TimedAction[] targetActions)
+	{
+		validSizeH(targetActions.length);
+		ensuresValidInputH(targetActions);
+		// Finally, use the SAT to get a valid actions object
+		try{
+			initH();
+		}catch(java.lang.IllegalArgumentException e ){
+			// Skip the test if the provided values are too large for the solver
+			// instead of Failing the test with an UNSAT
+			if( e.getMessage().contains("no this.atoms" ) ){
+				throw new SkipException("Missing Precondition: The provided values are too large !\n" + this );
+			}
+		}
+		
+	}
+	
+	void initH()
+		modifies fields
+			Schedule:actions,
+			Schedule:duration,
+			Schedule:minDuration,
+			Schedule:endState
+		adds this.size TimedAction
+		ensures
+			valid()
+			&&
+			timeOrdering() 			
+			&&
+			durationConstraints()
+			&&
+			preserveInput()
+			&&
+			startingState()
+			&&
+			endingState()
+	{	}
+
+	String prettyPrint(TimedAction[] theActions){
+		String output = "";
+		output = output + "\tTime : Action     \t [Sta --> End]\t (HashCode)\n";
+		for( int i = 0; i < theActions.length; i ++ ){
+			output = output + "\t" + theActions[ i ].toString() + "\n";	
+		}
+		return output;
+	}
+	
+	public String toString() {
+    	return	"Schedule : \n" +
+				"\tDuration: \n" +
+					"\t\tEnd At: " + duration + "(" + minDuration + ")\n" +
+
+				"\tActions: \n" +
+					"\t\tSize " + size + " ( --- )\n" +
+					"\t\tEnd to " + endState + "\n" +
+					"\t\tSize " + size + " ( --- )\n" +
+					( ( actions != null ) ? "\n" + prettyPrint( actions ) + "\n" : "\t\tnull\n") +
+				
+				"\tPool: \n" +
+					"\t\tMin Size " + minStateSize + "\n" +
+					"\t\tMax Size " + maxStateSize + "\n" +
+					
+				"\tInputs: \n" +
+					"\t\tFirst Action At: " + firstActionAt + "\n" +
+					"\t\tStart From " + startFrom + "\n" +
+					( ( inputActions != null ) ? "\n" + prettyPrint( inputActions ) + "\n" : "\t\tnull\n") + 
+		"";
+	}	
+	
+	
+	/**
+	 * SPECIFICATION METHODS
+	 */
+	
+	/*
+	 * Start and End States
+	 */
+	 
+	spec boolean startingState(){
+	 	return
+	 		startFrom > -1 ==>
+	 			actions[ 0 ].startSize == startFrom
+	 		&&
+	 		firstActionAt > -1 ==>
+	 			actions[ 0 ].time == firstActionAt
+	 	;
+	 }
+
+	spec boolean endingState(){
+		return
+			minDuration == actions[ size -1 ].time
+			&& 
+			endState == actions[ size -1 ].targetSize
+		;
+	}
+	 
+	 
+	 /*
+	  *
+	  *	INPUT Management
+	  *
+	  */
+
+	 /*
+	 * We must preserve the relative ordering of the elements of the original array.
+	 * We make sure no two consecutive elements are the same !
+	 */
+	public void ensuresValidInputH(TimedAction[] targetActions)
+		modifies fields Schedule:inputActions
+		adds targetActions.length TimedAction 
+		ensures
+			targetActions.length > 0 ==> (
+				this.inputActions != null
+				&&
+				this.inputActions.length == targetActions.length
+				&&
+				// This preserves the relative order and provided attributes
+				all int i : 0 .. targetActions.length - 1 |(
+					targetActions[ i ].matches( this.inputActions[ i ] )
+					&&
+					targetActions[ i ].time == this.inputActions[ i ].time
+					&&
+					this.inputActions[ i ] != targetActions[ i ]
+					&&
+					// Input actions must have a type
+					targetActions[ i ].type == null ==>
+						this.inputActions[ i ].validType() // -> NOTE:" Questa richiede dei valori sui campi size !
+					&&
+					this.inputActions[ i ].sensorType == validSensorType( targetActions[ i ] )
+					&&
+					this.inputActions[ i ].startSize == targetActions[ i ].startSize
+					&&
+					this.inputActions[ i ].targetSize == targetActions[ i ].targetSize
+				)
+			)
+	{	}
+	
+	spec SensorType validSensorType(TimedAction target){
+		return
+			( target.sensorType != null ) ?	
+				target.sensorType :
+					SensorType.POOL_SENSOR
+		;
+	}
+
+	
+	spec int matchesAtPosition( TimedAction action ){
+		return {
+			some int p : 0 .. this.actions.length -1 | (
+				action.matches( this.actions[ p ] )
+			) 
+		};
+	}
+		
+	spec int matchesAtPositionUnique( TimedAction action, int originalPosition ){
+		return {
+			// Start from the originalPosition to look for a match !
+			some int p : originalPosition .. this.actions.length -1 | (
+				action.matches( this.actions[ p ] ) &&
+				
+				// Take the smallest !
+				no int i : originalPosition .. this.actions.length -1 | ( 
+						action.matches( this.actions[ i ] ) &&
+						i < p
+				)
+			) 
+		};
+	}
+	
+	 spec boolean preserveInput(){
+		// For each pair of "subsequent" elements in the original
+		// array there must be a pair of "consecutive" elements in the target array
+		return
+			this.inputActions != null ==> (
+				
+				// Keep all the original elements
+				all TimedAction inputAction : this.inputActions | (
+					one TimedAction action : this.actions | (
+						// action.matches( inputAction ) || // Not sure this makes sense
+						inputAction.matches( action )
+					)
+				)
+				&&
+				this.inputActions.length > 1 ==> (
+					all int i : 0 .. this.inputActions.length - 2 | (
+						matchesAtPositionUnique( this.inputActions[ i ], i ) < matchesAtPositionUnique( this.inputActions[ i + 1 ], ( i + 1 ) )
+					)
+				) 
+			)
+		;
+	}
+	 
+	 
+	// Note: HardCoded value !
+	spec boolean validPool(){
+		return
+			minStateSize >= 0 &&
+			maxStateSize > minStateSize &&
+			maxStateSize <= 30
+		;
+	}
+	 
+	spec public boolean valid() {
+		return
+			size >= 0 
+			&&
+				validPool() 
+			&&
+			minDuration >= 0
+				&&
+				minDuration >= actions[ size - 1 ].time
+			&&
+			duration >= 0
+			&&
+			endState >= 0
+			&&
+			actions != null && actions.length == size
+			&&
+			// TODO How to avoid trivial cases where a sequence of events are just the same all over
+			all int i : 0 .. size - 1 | (
+				actions[ i ].valid() // All the actions must be valid !
+			)
+				//&&
+				//// All the actions must be different should be implied by the fact that times are different !
+				//all int j : 0 .. size - 1 | (
+				//	i != j ==> 
+				//		! actions[ i ].equalsTo( actions[ j ] )
+				//	)
+		;
+	}
+	
+	spec boolean doesNotMatchInput( TimedAction action ){
+		return
+			no TimedAction input : this.inputActions | ( input.matches( action ) )
+		;
+	}
+
+
+	spec boolean timeOrdering(){
+		return
+			all int t1 : 0 .. actions.length - 2 | (
+				actions[ t1 ].time < actions[ t1 + 1 ].time
+			)
+		; 
+	}
+	
+	spec boolean durationConstraints(){
+		return
+				this.duration >= this.minDuration
+		;
+	}
+}

@@ -1,0 +1,33 @@
+import polyglot.ext.pbnj.tologic.*;
+import java.util.Arrays;
+
+public class Test33 {
+    
+    spec int x;
+
+    public Test33() { 
+	this.x = 0;
+    }
+
+    public String toString() {
+	return " x=" + x;
+    }
+
+    uniqueresults public void m32()
+	ensures this.x > 0 && this.x <= 3 {
+    }
+
+    public static void main(String[] args) {	
+	//LogMap.SolverOpt_debugLevel(2);
+	LogMap.SolverOpt_IntBitWidth = 5;
+	Test33 t1 = new Test33();
+	int r = 3;
+	while (r-- >= 0) {
+	    System.out.println(t1);
+	    t1.m32();
+	    System.out.println(t1);
+	    t1.x = 0;
+	}
+    }
+
+}

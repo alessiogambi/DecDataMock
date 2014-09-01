@@ -1,0 +1,15 @@
+package com.tftpsuite.server;
+
+import pbnj.util.ArrayList;
+import pbnj.examples.primitives.PBJString;
+
+
+public class MockFile {
+   spec public PBJString name;
+   spec public ArrayList<byte[]> dataBlocks;
+   
+   public MockFile(String filename) {
+      name = new PBJString(filename);
+      dataBlocks = new ArrayList<byte[]>();
+   }
+}
