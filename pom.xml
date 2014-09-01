@@ -272,8 +272,6 @@
 			</properties>
 		</profile>
 
-		<!-- Double Check. Run all the evaluations with the patched2 version of 
-			the brooklyn-policy. -->
 		<profile>
 			<id>InstallPatch</id>
 			<activation>
@@ -313,7 +311,7 @@
 									<groupId>io.brooklyn</groupId>
 									<artifactId>brooklyn-policy</artifactId>
 									<file>./patch/brooklyn-policy-0.7.0-M1-patch2.jar</file>
-									<version>0.7.0-M1-patch</version>
+									<version>0.7.0-M1-patch2</version>
 									<pomFile>./patch/brooklyn-policy-0.7.0-M1-patch2.pom</pomFile>
 									<packaging>jar</packaging>
 								</configuration>
