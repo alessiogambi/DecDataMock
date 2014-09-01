@@ -1,17 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
-<suite name="ICSE 2015 - Evaluation 3.2 Cost-Effectiveness"
+<suite name="ICSE 2015 - Evaluation 3.2 Extra Elasticity-Related Properties"
 	verbose="1" annotations="JDK">
-	<test name="Original Test Cases">
+
+	<test name="Simultaneous Events With Zero-length Control Period">
+		<parameter name="minPeriodBetweenExecs" value="0" />
+
+		<parameter name="resizeUpStabilizationDelay" value="2000" />
+		<parameter name="resizeDownStabilizationDelay" value="2000" />
 		<classes>
-			<class name="at.ac.testing.brooklyn.evaluation3.AutoScalerPolicyTest" />
-			<class name="at.ac.testing.brooklyn.evaluation3.AutoScalerPolicyMetricTest" />
+			<class
+				name="at.ac.testing.brooklyn.scenario.AutoScalerPolicyRobustness2Test">
+				<methods>
+					<include name="testConcurrentShrinkShrink"></include>
+					<include name="testConcurrentGrowGrow"></include>
+					<include name="testConcurrentGrowShrink"></include>
+					<include name="testConcurrentShrinkGrow"></include>
+				</methods>
+			</class>
 		</classes>
 	</test>
-	<test name="Automated Test 2">
+	<test name="Conflicting Events">
 		<classes>
-			<class name="at.ac.testing.brooklyn.evaluation3.ConflictingEventsTest">
-			</class>
+			<class name="at.ac.testing.brooklyn.evaluation3.ConflictingEventsTest"/>
 		</classes>
 	</test>
 </suite>

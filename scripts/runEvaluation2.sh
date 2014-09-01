@@ -25,7 +25,7 @@ do
 	mkdir $OUTPUT_DIR
 
 	echo "Moving Surefire Report Folder to $OUTPUT_DIR"
-	mv -v ./target/surefire-reports "$OUTPUT_DIR/test-report"
+	mv -v ./target/surefire-reports $OUTPUT_DIR
 
 	echo "Moving output.log to $OUTPUT_DIR"
 	mv -v output.log "$OUTPUT_DIR/"
