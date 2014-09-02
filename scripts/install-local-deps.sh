@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Install the patched version2 of the Brooklyn Policy as local versions"
+echo "Install the patched versions of the Brooklyn Policy as local versions"
 
 OLD_DIR=`pwd`
 

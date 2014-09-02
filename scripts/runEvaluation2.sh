@@ -22,7 +22,6 @@ do
 	# Prepare the Package to mv to output folder
         OUTPUT_DIR="reports/"`basename $testSuite .xml`
         if [ -d "$OUTPUT_DIR" ]; then rm -rf $OUTPUT_DIR; fi
-	mkdir $OUTPUT_DIR
 
 	echo "Moving Surefire Report Folder to $OUTPUT_DIR"
 	mv -v ./target/surefire-reports $OUTPUT_DIR
