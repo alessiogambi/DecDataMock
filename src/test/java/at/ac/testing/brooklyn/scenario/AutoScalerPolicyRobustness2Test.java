@@ -378,7 +378,7 @@ public class AutoScalerPolicyRobustness2Test extends
 		Assert.assertTrue(timeToResizeTo2 >= resizeUpStabilizationDelay
 				- EARLY_RETURN_MS
 				&& timeToResizeTo2 <= resizeUpStabilizationDelay
-						+ OVERHEAD_DURATION_MS, "Resizing to 2: time="
+						+ OVERHEAD_DURATION_MS + minPeriodBetweenExecs, "Resizing to 2: time="
 				+ timeToResizeTo2 + "; resizeUpStabilizationDelay="
 				+ resizeUpStabilizationDelay);
 
@@ -594,7 +594,7 @@ public class AutoScalerPolicyRobustness2Test extends
 		long timeToResizeTo2 = stopwatch.elapsed(TimeUnit.MILLISECONDS);
 		Assert.assertTrue(timeToResizeTo2 >= resizeDownStabilizationDelay
 				- EARLY_RETURN_MS
-				&& timeToResizeTo2 <= resizeDownStabilizationDelay
+				&& timeToResizeTo2 <= resizeDownStabilizationDelay + minPeriodBetweenExecs
 						+ OVERHEAD_DURATION_MS, "Resizing to 2: time="
 				+ timeToResizeTo2 + "; resizeDownStabilizationDelay="
 				+ resizeDownStabilizationDelay);
@@ -609,7 +609,7 @@ public class AutoScalerPolicyRobustness2Test extends
 		Assert.assertTrue(timeToResizeTo1 >= resizeDownStabilizationDelay
 				- EARLY_RETURN_MS
 				&& timeToResizeTo1 <= resizeDownStabilizationDelay
-						+ OVERHEAD_DURATION_MS,
+						+ OVERHEAD_DURATION_MS + minPeriodBetweenExecs,
 				"Resizing to 1: timeToResizeTo1=" + timeToResizeTo1
 						+ "; timeToResizeTo2=" + timeToResizeTo2
 						+ "; resizeDownStabilizationDelay="

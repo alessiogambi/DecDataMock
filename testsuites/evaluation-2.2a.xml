@@ -4,16 +4,13 @@
 
 	<parameter name="lowerBound" value="10" />
 	<parameter name="upperBound" value="50" />
-	<parameter name="minSize" value="0" />
-	<parameter name="maxSize" value="10" />
-
 	<parameter name="minPeriodBetweenExecs" value="2000" />
-	<parameter name="resizeUpStabilizationDelay" value="6000" />
-	<parameter name="resizeDownStabilizationDelay" value="8000" />
-
+        <parameter name="resizeUpStabilizationDelay" value="7000" />
+        <parameter name="resizeDownStabilizationDelay" value="7000" />
+	
 	<suite-files>
 		<suite-file path="testsuites/evaluation2.2/original.xml"></suite-file>
-		<suite-file path="testsuites/evaluation2.2/equivalent.xml"></suite-file>
+		<suite-file path="testsuites/evaluation2.2/equivalent.xml"></suite-file> 
 		<suite-file path="testsuites/evaluation2.2/scenario.xml"></suite-file>
 	</suite-files>
 </suite>
