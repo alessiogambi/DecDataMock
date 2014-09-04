@@ -14,9 +14,8 @@ Echo "Apply the Schedule Patch for Simultaneous events"
 cp -v ./src//test/resources/at/ac/testing/mocks/Schedule.pbj.evaluation3 ./src//test/resources/at/ac/testing/mocks/Schedule.pbj
 
 for testSuite in \
-        "testsuites/evaluation-3.1.xml"
+        "testsuites/evaluation-3.1.xml" \
 	"testsuites/evaluation-3.2.xml"
-
 do
 	echo "Processing $testSuite"
 	mvn clean test -DsuiteFile="$testSuite" -P'Evaluation3' 2>&1 | tee output.log

@@ -113,21 +113,6 @@ public class AutomationTest {
 
 	}
 
-	@Test(dataProvider = "allTransitions")
-	public void testResizeWithPoolSensor(Integer startSize, Integer targetSize) {
-		resizable.resize(startSize);
-		SensorReading sr = dataMock.resize(startSize, targetSize);
-
-		resizable.emit(getSensor(sr, startSize, targetSize),
-				sr.getSensorReading());
-
-		TestUtils
-				.executeUntilSucceeds(ImmutableMap.of("timeout",
-						Long.valueOf(TIMEOUT_MS)), AutoScalerPolicyTest
-						.currentSizeAsserter(resizable, targetSize));
-
-	}
-
 	private BasicNotificationSensor<Map> getSensor(SensorReading sr,
 			int startSize, int targetSize) {
 		if (startSize == targetSize) {
